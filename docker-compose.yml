@@ -1,0 +1,92 @@
+name: telemetryhub-mqtt-dashboard
+
+services:
+  db:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_USER: telemetryhub
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: telemetryhub
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U telemetryhub"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    restart: unless-stopped
+
+  api-server:
+    build:
+      context: ./backend
+      dockerfile: ../docker/api.Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    environment:
+      - DATABASE_URL=postgres://telemetryhub:password@db:5432/telemetryhub?sslmode=disable
+      - JWT_SECRET=${JWT_SECRET:-supersecretjwtkeytelemetryhub2026longenough}
+      - SESSION_EXPIRY_HOURS=${SESSION_EXPIRY_HOURS:-24}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@telemetryhub.local}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - FRONTEND_URL=http://localhost:3000
+      - API_HOST=0.0.0.0
+      - API_PORT=8080
+      - RATE_LIMIT_PER_SEC=${RATE_LIMIT_PER_SEC:-20}
+      - DB_MIN_CONNS=2
+      - DB_MAX_CONNS=10
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - MQTT_BROKER=${MQTT_BROKER:-mosquitto}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - "MQTT_TOPIC=${MQTT_TOPIC:-CARDIMED/#}"
+      - MQTT_USERNAME=${MQTT_USERNAME:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - MQTT_QOS=${MQTT_QOS:-1}
+      - MQTT_TLS=${MQTT_TLS:-false}
+      - MQTT_TLS_INSECURE=${MQTT_TLS_INSECURE:-false}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  # mqtt-simulator:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: ../docker/simulator.Dockerfile
+  #   depends_on:
+  #     - mosquitto
+  #   environment:
+  #     - MQTT_BROKER=${MQTT_BROKER:-mosquitto}
+  #     - MQTT_PORT=${MQTT_PORT:-1883}
+  #     - SIM_TOPIC=${SIM_TOPIC:-CARDIMED/EBOS/DEMO_9/}
+  #     - SIM_FORMAT=${SIM_FORMAT:-all}
+  #     - SIM_INTERVAL=${SIM_INTERVAL:-10s}
+  #   restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      - api-server
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+volumes:
+  db_data:

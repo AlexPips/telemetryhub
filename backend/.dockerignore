@@ -1,0 +1,19 @@
+# Go test artifacts
+coverage.out
+*.test
+
+# Build output
+bin/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/

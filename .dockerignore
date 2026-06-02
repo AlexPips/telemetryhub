@@ -1,0 +1,37 @@
+# ─── Root .dockerignore ───────────────────────────────────────────────────────
+# Used by: frontend build (context: .)
+# Backend builds use backend/.dockerignore instead.
+
+# Git and CI
+.git/
+.sisyphus/
+
+# Environment
+.env
+.env.example
+
+# Python prototype backup
+.backup/
+
+# Sample data — not needed at build time
+examples/
+
+# Go backend — irrelevant for frontend builds
+backend/
+
+# Root-level config — irrelevant inside Docker
+docker-compose.yml
+mosquitto.conf
+Makefile
+.gitignore
+README.md
+DEPLOY.md
+AGENTS.md
+
+# Local build artifacts
+bin/
+coverage.out
+
+# Frontend — source IS needed, but NOT these (rebuilt in Docker)
+frontend/node_modules/
+frontend/.next/

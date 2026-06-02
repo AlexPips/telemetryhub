@@ -1,0 +1,40 @@
+# Dependencies — installed inside the container
+node_modules/
+
+# Next.js build output — generated at build time
+.next/
+
+# Test artifacts
+coverage/
+*.test.*
+*.spec.*
+
+# TypeScript — compiled at build time
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Environment — secrets, not needed in build
+.env
+.env.*
+!.env.example
+
+# Documentation — not needed at runtime
+*.md
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
