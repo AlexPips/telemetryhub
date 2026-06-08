@@ -9,11 +9,11 @@ build:
     - docker:24-dind
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker build --no-cache -f docker/frontend.Dockerfile -t $CI_REGISTRY_IMAGE/cardimedfrontend:$CI_COMMIT_SHA .
+    - docker build  -f docker/frontend.Dockerfile -t $CI_REGISTRY_IMAGE/cardimedfrontend:$CI_COMMIT_SHA .
     - docker push $CI_REGISTRY_IMAGE/cardimedfrontend:$CI_COMMIT_SHA
-    - docker build --no-cache -f docker/api.Dockerfile -t $CI_REGISTRY_IMAGE/cardimedbackend:$CI_COMMIT_SHA .
+    - docker build  -f docker/api.Dockerfile -t $CI_REGISTRY_IMAGE/cardimedbackend:$CI_COMMIT_SHA .
     - docker push $CI_REGISTRY_IMAGE/cardimedbackend:$CI_COMMIT_SHA
-    - docker build --no-cache -f docker/simulator.Dockerfile -t $CI_REGISTRY_IMAGE/cardimedsimulator:$CI_COMMIT_SHA .
+    - docker build  -f docker/simulator.Dockerfile -t $CI_REGISTRY_IMAGE/cardimedsimulator:$CI_COMMIT_SHA .
     - docker push $CI_REGISTRY_IMAGE/cardimedsimulator:$CI_COMMIT_SHA
 
   # rules:
