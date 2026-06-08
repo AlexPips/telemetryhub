@@ -4,9 +4,11 @@ stages:
 
 build:
   stage: build
-  image: docker:24
+  image: 
+    name: docker
+    entrypoint: ['']
   services:
-    - docker:24-dind
+    - docker
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker build  -f docker/frontend.Dockerfile -t $CI_REGISTRY_IMAGE/cardimedfrontend:$CI_COMMIT_SHA ./frontend
