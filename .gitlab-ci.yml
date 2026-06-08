@@ -1,0 +1,51 @@
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build --no-cache -f docker/frontend.Dockerfile -t $CI_REGISTRY_IMAGE/cardimedfrontend:$CI_COMMIT_SHA .
+    - docker push $CI_REGISTRY_IMAGE/cardimedfrontend:$CI_COMMIT_SHA
+    - docker build --no-cache -f docker/api.Dockerfile -t $CI_REGISTRY_IMAGE/cardimedbackend:$CI_COMMIT_SHA .
+    - docker push $CI_REGISTRY_IMAGE/cardimedbackend:$CI_COMMIT_SHA
+    - docker build --no-cache -f docker/simulator.Dockerfile -t $CI_REGISTRY_IMAGE/cardimedsimulator:$CI_COMMIT_SHA .
+    - docker push $CI_REGISTRY_IMAGE/cardimedsimulator:$CI_COMMIT_SHA
+
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "prod"'
+
+deploy:
+  stage: deploy
+  image:
+    name: bitnami/kubectl:latest
+    entrypoint: [""]
+  variables:
+    IMAGE_NAME: $IMAGE_TAG
+  script:
+    # # Select cluster
+    # Pre-prod k8s connection
+    - kubectl config use-context rd-devs/k8s-connecttion:rnddevs-k8s-connection
+    # # Prod k8s connection
+    #- kubectl config use-context rd-devs/production-k8s-connecttion:production-k8s-connection
+
+    # # Added credentials for registry
+    # # Recreate registry secret safely
+    # - kubectl delete secret gitlab-registry -n "$K8S_NAMESPACE" --ignore-not-found --insecure-skip-tls-verify
+    # - kubectl create secret docker-registry gitlab-registry --docker-server="$CI_REGISTRY" --docker-username="$CI_REGISTRY_USER" --docker-password="$CI_REGISTRY_PASSWORD" --docker-email=${GITLAB_USER_EMAIL:-$CI_COMMIT_AUTHOR_EMAIL} -n "$K8S_NAMESPACE" --insecure-skip-tls-verify
+
+    # # Inject image tag into manifest
+    # - envsubst < $CI_PROJECT_DIR/k8s-files/deploy.yaml > $CI_PROJECT_DIR/k8s-files/frontend-deployment-temp.yaml
+
+    # # Apply all k8s resources
+    # - kubectl apply -f $CI_PROJECT_DIR/k8s-files/. --validate=false --insecure-skip-tls-verify
+
+    # # Restart + wait
+    # - kubectl rollout restart deployment/ismed-clim-frontend --insecure-skip-tls-verify
+    # - kubectl rollout status deployment/ismed-clim-frontend --insecure-skip-tls-verify
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "prod"'
