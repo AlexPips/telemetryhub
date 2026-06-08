@@ -16,8 +16,8 @@ build:
     - docker build --no-cache -f docker/simulator.Dockerfile -t $CI_REGISTRY_IMAGE/cardimedsimulator:$CI_COMMIT_SHA .
     - docker push $CI_REGISTRY_IMAGE/cardimedsimulator:$CI_COMMIT_SHA
 
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "prod"'
+  # rules:
+  #   - if: '$CI_COMMIT_BRANCH == "prod"'
 
 deploy:
   stage: deploy
@@ -47,5 +47,5 @@ deploy:
     # # Restart + wait
     # - kubectl rollout restart deployment/ismed-clim-frontend --insecure-skip-tls-verify
     # - kubectl rollout status deployment/ismed-clim-frontend --insecure-skip-tls-verify
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "prod"'
+  # rules:
+  #   - if: '$CI_COMMIT_BRANCH == "prod"'
