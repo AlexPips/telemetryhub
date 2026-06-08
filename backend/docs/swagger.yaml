@@ -1,0 +1,738 @@
+basePath: /api/v1
+definitions:
+  auth.ChangePasswordRequest:
+    properties:
+      current_password:
+        type: string
+      new_password:
+        type: string
+    type: object
+  auth.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  auth.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  auth.LoginResponse:
+    properties:
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/auth.UserInfo'
+    type: object
+  auth.MessageResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  auth.RegisterRequest:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 8
+        type: string
+      role:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  auth.RegisterResponse:
+    properties:
+      email:
+        type: string
+      id:
+        type: integer
+      role:
+        type: string
+    type: object
+  auth.UserInfo:
+    properties:
+      email:
+        type: string
+      role:
+        type: string
+    type: object
+  auth.UserResponse:
+    properties:
+      email:
+        type: string
+      id:
+        type: integer
+      role:
+        type: string
+    type: object
+  handlers.CreateRenameRequest:
+    properties:
+      chart_group:
+        type: string
+      display_name:
+        type: string
+      raw_field:
+        type: string
+      unit:
+        type: string
+    type: object
+  handlers.DeviceRow:
+    properties:
+      device_type:
+        type: string
+      field_count:
+        type: integer
+      first_seen:
+        type: string
+      id:
+        type: string
+      last_seen:
+        type: string
+      name:
+        type: string
+    type: object
+  handlers.FieldRename:
+    properties:
+      chart_group:
+        type: string
+      device_id:
+        type: string
+      display_name:
+        type: string
+      raw_field:
+        type: string
+      unit:
+        type: string
+    type: object
+  handlers.ReadingResult:
+    properties:
+      bucket:
+        type: string
+      display_name:
+        type: string
+      field_name:
+        type: string
+      max:
+        type: number
+      min:
+        type: number
+      unit:
+        type: string
+      value:
+        type: number
+    type: object
+  handlers.ReadingsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/handlers.ReadingResult'
+        type: array
+      device_id:
+        type: string
+      fields:
+        items:
+          type: string
+        type: array
+      from:
+        type: string
+      to:
+        type: string
+    type: object
+  handlers.UpdateDeviceRequest:
+    properties:
+      device_type:
+        type: string
+      name:
+        type: string
+    type: object
+  handlers.UpdateRenameRequest:
+    properties:
+      chart_group:
+        type: string
+      display_name:
+        type: string
+      unit:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: admin@telemetryhub.local
+    name: API Support
+  description: Real-time MQTT weather station dashboard with JWT authentication. Provides
+    device management, sensor readings with TimescaleDB downsampling, and field rename
+    configuration.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://telemetryhub.local/terms
+  title: TelemetryHub API
+  version: "1.0"
+paths:
+  /auth/change-password:
+    post:
+      consumes:
+      - application/json
+      description: Changes the authenticated user's password and invalidates all active
+        sessions. Requires current password verification.
+      parameters:
+      - description: Current and new password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Change password
+      tags:
+      - auth
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 'Authenticates a user with email and password. Returns a JWT Bearer
+        token and user info. The token must be sent as `Authorization: Bearer <token>`
+        header for authenticated endpoints.'
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      summary: Login
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      description: Invalidates the current JWT session. The token will no longer be
+        valid for authenticated requests.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - auth
+  /auth/me:
+    get:
+      description: Returns the authenticated user's ID, email, and role based on the
+        current JWT token.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.UserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new platform user. Requires admin role. Passwords must
+        be at least 8 characters.
+      parameters:
+      - description: Registration details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/auth.RegisterResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Register a new user
+      tags:
+      - auth
+  /devices:
+    get:
+      description: Returns all known MQTT devices with field counts, ordered by last
+        seen descending.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.DeviceRow'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List devices
+      tags:
+      - devices
+  /devices/{id}:
+    delete:
+      description: Deletes a device and all its associated readings and renames. Requires
+        admin role.
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.MessageResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete device
+      tags:
+      - devices
+    get:
+      description: Returns a single device by its ID.
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.DeviceRow'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get device
+      tags:
+      - devices
+    put:
+      consumes:
+      - application/json
+      description: Updates a device's display name and type. Requires admin role.
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Device update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateDeviceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update device
+      tags:
+      - devices
+  /devices/{id}/fields:
+    get:
+      description: Returns all distinct sensor field names for a device.
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get device fields
+      tags:
+      - devices
+  /devices/{id}/readings:
+    get:
+      description: 'Returns downsampled sensor readings for a device. Uses TimescaleDB
+        time bucketing: 15-minute buckets for <24h range, 1-hour for <7d, 1-day for
+        longer. Field renames are applied automatically.'
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Comma-separated field names (e.g. temperature,humidity)
+        in: query
+        name: fields
+        required: true
+        type: string
+      - description: 'Start time in RFC3339 format (default: 24h ago)'
+        in: query
+        name: from
+        type: string
+      - description: 'End time in RFC3339 format (default: now)'
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ReadingsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get readings
+      tags:
+      - readings
+  /devices/{id}/renames:
+    get:
+      description: Returns all field rename configurations for a device.
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.FieldRename'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List field renames
+      tags:
+      - renames
+    post:
+      consumes:
+      - application/json
+      description: Creates a new field rename configuration for a device. The display_name
+        and unit are used in chart labels. Requires admin role.
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Rename configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateRenameRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/auth.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create field rename
+      tags:
+      - renames
+  /devices/{id}/renames/{field}:
+    delete:
+      description: Deletes a field rename configuration. Readings will fall back to
+        raw field names. Requires admin role.
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Raw field name
+        in: path
+        name: field
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.MessageResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete field rename
+      tags:
+      - renames
+    put:
+      consumes:
+      - application/json
+      description: Updates an existing field rename configuration. Requires admin
+        role.
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Raw field name
+        in: path
+        name: field
+        required: true
+        type: string
+      - description: Updated rename configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateRenameRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update field rename
+      tags:
+      - renames
+  /health:
+    get:
+      description: Returns the API server health status, uptime, MQTT connection status,
+        and current timestamp.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Health check
+      tags:
+      - system
+securityDefinitions:
+  BearerAuth:
+    description: JWT Bearer token obtained from /auth/login
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
