@@ -44,12 +44,9 @@ deploy:
 
   script:
       - kubectl config use-context rd-devs/k8s-connecttion:rnddevs-k8s-connection
-      - |
-        CLUSTER="rd-devs/k8s-connecttion:rnddevs-k8s-connection"
-        kubectl config set-cluster "$CLUSTER" --insecure-skip-tls-verify=true
-        kubectl config unset clusters."$CLUSTER".certificate-authority-data
-        kubectl config unset clusters."$CLUSTER".certificate-authority
-      - kubectl config view  # verify CA data is gone
+      - kubectl config set-cluster gitlab --insecure-skip-tls-verify=true
+      - kubectl config unset clusters.gitlab.certificate-authority-data
+      - kubectl config unset clusters.gitlab.certificate-authority
       - kubectl apply --validate=false -f k8s/namespace.yaml
 
       # Registry pull secret
