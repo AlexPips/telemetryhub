@@ -67,6 +67,15 @@ spec:
             - name: MQTT_TLS
               value: "false"
 
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health   # not /health
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health   # not /health
+              port: 8080
+
 ---
 apiVersion: v1
 kind: Service
