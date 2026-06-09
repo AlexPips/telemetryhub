@@ -5,16 +5,11 @@ stages:
 build:
   stage: build
   image: docker:24
-  variables:
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
-    DOCKER_DRIVER: overlay2
-
   services:
     - name: docker:24-dind
-      alias: docker
-
+      command: ["--tls=false"]
   script:
+
     - docker info
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
     - docker build -f docker/frontend.Dockerfile -t $CI_REGISTRY_IMAGE/cardimedfrontend:$CI_COMMIT_SHA ./frontend
