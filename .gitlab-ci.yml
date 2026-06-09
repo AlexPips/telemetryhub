@@ -47,6 +47,7 @@ deploy:
       - kubectl config set-cluster $(kubectl config current-context) --insecure-skip-tls-verify=true --certificate-authority=""
 
       # Namespace
+      - kubectl get ns --insecure-skip-tls-verify=true
       - kubectl apply --validate=false --validate=false -f k8s/namespace.yaml
 
       # Registry pull secret
