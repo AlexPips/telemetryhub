@@ -8,9 +8,17 @@ spec:
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: local-storage
-  hostPath:
+  storageClassName: local-storage-immediate
+  local:
     path: /mnt/disks/postgres
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - dashboards2
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -18,12 +26,12 @@ metadata:
   name: postgres-pvc
   namespace: cardimed
 spec:
+  storageClassName: local-storage-immediate
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
       storage: 20Gi
-  storageClassName: local-storage
 ---
 apiVersion: apps/v1
 kind: Deployment
