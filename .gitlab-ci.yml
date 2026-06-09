@@ -43,6 +43,7 @@ deploy:
     K8S_NAMESPACE: cardimed
 
   script:
+      - mkdir -p /usr/local/share/ca-certificates
       - cp "$INTERNAL_CA_CERT" /usr/local/share/ca-certificates/ebos-root-ca.crt
       - update-ca-certificates
       - kubectl config use-context rd-devs/k8s-connecttion:rnddevs-k8s-connection
