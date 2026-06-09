@@ -25,8 +25,14 @@ spec:
             - containerPort: 8080
 
           env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cardimed-secrets
+                  key: POSTGRES_PASSWORD
+
             - name: DATABASE_URL
-              value: postgres://telemetryhub:password@postgres:5432/telemetryhub?sslmode=disable
+              value: postgres://telemetryhub:$(POSTGRES_PASSWORD)@postgres:5432/telemetryhub?sslmode=disable
 
             - name: JWT_SECRET
               valueFrom:
@@ -40,6 +46,12 @@ spec:
                   name: cardimed-secrets
                   key: ADMIN_PASSWORD
 
+            - name: API_HOST
+              value: "0.0.0.0"
+
+            - name: API_PORT
+              value: "8080"
+
             - name: MQTT_BROKER
               value: mosquitto
 
@@ -47,4 +59,31 @@ spec:
               value: "1883"
 
             - name: MQTT_TOPIC
-              value: CARDIMED/#
+              value: "CARDIMED/#"
+
+            - name: MQTT_QOS
+              value: "1"
+
+            - name: MQTT_TLS
+              value: "false"
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 6
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-server
+  namespace: cardimed
+spec:
+  selector:
+    app: api-server
+  ports:
+    - port: 8080
+      targetPort: 8080
