@@ -60,7 +60,7 @@ deploy:
           -n $K8S_NAMESPACE
 
       - kubectl apply --validate=false -f k8s/secrets.yaml
-      # - kubectl apply --validate=false -f k8s/postgres.yaml
+      - kubectl apply --validate=false -f k8s/postgres.yaml
       # - kubectl apply --validate=false -f k8s/mosquitto.yaml
 
       # - export IMAGE_TAG=$CI_COMMIT_SHA
