@@ -50,20 +50,20 @@ deploy:
         --docker-email="${GITLAB_USER_EMAIL:-$CI_COMMIT_AUTHOR_EMAIL}"
         -n $K8S_NAMESPACE
 
-    # static resources
-    - kubectl apply -f k8s-files/01-secrets.yaml
-    - kubectl apply -f k8s-files/02-postgres.yaml
-    - kubectl apply -f k8s-files/03-mosquitto.yaml
+    # # static resources
+    # - kubectl apply -f k8s-files/01-secrets.yaml
+    # - kubectl apply -f k8s-files/02-postgres.yaml
+    # - kubectl apply -f k8s-files/03-mosquitto.yaml
 
-    # templated deployments
-    - export IMAGE_TAG=$CI_COMMIT_SHA
-    - envsubst < k8s-files/04-api.yaml > /tmp/api.yaml
-    - envsubst < k8s-files/05-frontend.yaml > /tmp/frontend.yaml
+    # # templated deployments
+    # - export IMAGE_TAG=$CI_COMMIT_SHA
+    # - envsubst < k8s-files/04-api.yaml > /tmp/api.yaml
+    # - envsubst < k8s-files/05-frontend.yaml > /tmp/frontend.yaml
 
-    - kubectl apply -f /tmp/api.yaml
-    - kubectl apply -f /tmp/frontend.yaml
-    - kubectl apply -f k8s-files/06-ingress.yaml
+    # - kubectl apply -f /tmp/api.yaml
+    # - kubectl apply -f /tmp/frontend.yaml
+    # - kubectl apply -f k8s-files/06-ingress.yaml
 
-    # rollout safety
-    - kubectl rollout status deployment/api-server -n $K8S_NAMESPACE --timeout=300s
-    - kubectl rollout status deployment/frontend -n $K8S_NAMESPACE --timeout=300s
+    # # rollout safety
+    # - kubectl rollout status deployment/api-server -n $K8S_NAMESPACE --timeout=300s
+    # - kubectl rollout status deployment/frontend -n $K8S_NAMESPACE --timeout=300s
