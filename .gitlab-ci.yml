@@ -5,8 +5,8 @@ stages:
 build:
   stage: build
   # Temp disable flag
-  rules:
-   - when: never 
+  # rules:
+  #  - when: never 
   image: docker:24
 
   variables:
