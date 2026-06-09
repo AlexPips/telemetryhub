@@ -44,7 +44,7 @@ deploy:
 
   script:
       - kubectl config use-context rd-devs/k8s-connecttion:rnddevs-k8s-connection
-      - kubectl config set-cluster $(kubectl config current-context) --insecure-skip-tls-verify=true --certificate-authority=""
+      - kubectl config set-cluster $(kubectl config current-context) --insecure-skip-tls-verify=true --certificate-authority="" --embed-certs=false
 
       # Namespace
       - kubectl get ns --insecure-skip-tls-verify=true
