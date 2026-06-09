@@ -4,12 +4,19 @@ metadata:
   name: cardimed
   namespace: cardimed
   annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
 spec:
-  ingressClassName: nginx
-
+  tls:
+    - hosts:
+        - cardimed.192.168.1.50.nip.io
+        - api.cardimed.192.168.1.50.nip.io
+      secretName: cardimed-tls
   rules:
-    - host: cardimed.example.com
+    - host: cardimed.192.168.1.50.nip.io
       http:
         paths:
           - path: /
@@ -20,7 +27,7 @@ spec:
                 port:
                   number: 3000
 
-    - host: api.cardimed.example.com
+    - host: api.cardimed.192.168.1.50.nip.io
       http:
         paths:
           - path: /
