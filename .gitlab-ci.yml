@@ -57,11 +57,11 @@ deploy:
     - kubectl apply --validate=false --insecure-skip-tls-verify -f k8s/postgres.yaml
     - kubectl apply --validate=false --insecure-skip-tls-verify -f k8s/mosquitto.yaml
 
-      - export IMAGE_TAG=$CI_COMMIT_SHA
-      - envsubst < k8s/api.yaml      > /tmp/api.yaml
-      - envsubst < k8s/frontend.yaml > /tmp/frontend.yaml
+    - export IMAGE_TAG=$CI_COMMIT_SHA
+    - envsubst < k8s/api.yaml      > /tmp/api.yaml
+    - envsubst < k8s/frontend.yaml > /tmp/frontend.yaml
 
-      - kubectl apply --validate=false --insecure-skip-tls-verify -f /tmp/api.yaml
+    - kubectl apply --validate=false --insecure-skip-tls-verify -f /tmp/api.yaml
       # - kubectl apply --validate=false -f /tmp/frontend.yaml
       # - kubectl apply --validate=false -f k8s/ingress.yaml
 
