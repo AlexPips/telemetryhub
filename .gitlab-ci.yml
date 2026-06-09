@@ -50,7 +50,7 @@ deploy:
     - envsubst < k8s/frontend.yaml > /tmp/frontend.yaml
 
     - kubectl apply --validate=false --insecure-skip-tls-verify -f /tmp/api.yaml
-      # - kubectl apply --validate=false -f /tmp/frontend.yaml
+    - kubectl apply --validate=false --insecure-skip-tls-verify -f /tmp/frontend.yaml
       # - kubectl apply --validate=false -f k8s/ingress.yaml
 
       # - kubectl rollout status deployment/api-server -n $K8S_NAMESPACE --timeout=300s
