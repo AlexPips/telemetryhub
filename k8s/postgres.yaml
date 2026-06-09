@@ -72,6 +72,9 @@ spec:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   storageClassName: local-storage
+  claimRef:                          # <-- add this
+    namespace: cardimed
+    name: postgres-pvc
   local:
     path: /mnt/disks/postgres
   nodeAffinity:
