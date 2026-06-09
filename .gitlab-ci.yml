@@ -43,38 +43,36 @@ deploy:
     K8S_NAMESPACE: cardimed
 
   script:
-    - kubectl config use-context rd-devs/k8s-connecttion:rnddevs-k8s-connection
+      - kubectl config use-context rd-devs/k8s-connecttion:rnddevs-k8s-connection
+      - kubectl config set-cluster $(kubectl config current-context) --insecure-skip-tls-verify=true
 
-    # Namespace
-    - kubectl apply -f k8s/namespace.yaml
+      # Namespace
+      - kubectl apply -f k8s/namespace.yaml
 
-    # Registry pull secret (recreated every run to keep credentials fresh)
-    - kubectl delete secret gitlab-registry -n $K8S_NAMESPACE --ignore-not-found
-    - |
-      kubectl create secret docker-registry gitlab-registry
-        --docker-server="$CI_REGISTRY"
-        --docker-username="$CI_REGISTRY_USER"
-        --docker-password="$CI_REGISTRY_PASSWORD"
-        --docker-email="${GITLAB_USER_EMAIL:-$CI_COMMIT_AUTHOR_EMAIL}"
-        -n $K8S_NAMESPACE
+      # Registry pull secret
+      - kubectl delete secret gitlab-registry -n $K8S_NAMESPACE --ignore-not-found
+      - |
+        kubectl create secret docker-registry gitlab-registry \
+          --docker-server="$CI_REGISTRY" \
+          --docker-username="$CI_REGISTRY_USER" \
+          --docker-password="$CI_REGISTRY_PASSWORD" \
+          --docker-email="${GITLAB_USER_EMAIL:-$CI_COMMIT_AUTHOR_EMAIL}" \
+          -n $K8S_NAMESPACE
 
-    # Static resources
-    - kubectl apply -f k8s/secrets.yaml
-    - kubectl apply -f k8s/postgres.yaml
-    - kubectl apply -f k8s/mosquitto.yaml
+      - kubectl apply -f k8s/secrets.yaml
+      - kubectl apply -f k8s/postgres.yaml
+      - kubectl apply -f k8s/mosquitto.yaml
 
-    # Templated deployments (envsubst replaces IMAGE_TAG and CI_REGISTRY_IMAGE)
-    - export IMAGE_TAG=$CI_COMMIT_SHA
-    - envsubst < k8s/api.yaml      > /tmp/api.yaml
-    - envsubst < k8s/frontend.yaml > /tmp/frontend.yaml
+      - export IMAGE_TAG=$CI_COMMIT_SHA
+      - envsubst < k8s/api.yaml      > /tmp/api.yaml
+      - envsubst < k8s/frontend.yaml > /tmp/frontend.yaml
 
-    - kubectl apply -f /tmp/api.yaml
-    - kubectl apply -f /tmp/frontend.yaml
-    - kubectl apply -f k8s/ingress.yaml
+      - kubectl apply -f /tmp/api.yaml
+      - kubectl apply -f /tmp/frontend.yaml
+      - kubectl apply -f k8s/ingress.yaml
 
-    # Rollout safety
-    - kubectl rollout status deployment/api-server -n $K8S_NAMESPACE --timeout=300s
-    - kubectl rollout status deployment/frontend   -n $K8S_NAMESPACE --timeout=300s
+      - kubectl rollout status deployment/api-server -n $K8S_NAMESPACE --timeout=300s
+      - kubectl rollout status deployment/frontend   -n $K8S_NAMESPACE --timeout=300s
 
   # rules:
   #   - if: '$CI_COMMIT_BRANCH == "main"'
