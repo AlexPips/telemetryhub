@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-server
+  namespace: cardimed
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-server
+  template:
+    metadata:
+      labels:
+        app: api-server
+    spec:
+      imagePullSecrets:
+        - name: gitlab-registry
+
+      containers:
+        - name: api-server
+          image: ${CI_REGISTRY_IMAGE}/cardimedbackend:${IMAGE_TAG}
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 8080
+
+          env:
+            - name: DATABASE_URL
+              value: postgres://telemetryhub:password@postgres:5432/telemetryhub?sslmode=disable
+
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cardimed-secrets
+                  key: JWT_SECRET
+
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cardimed-secrets
+                  key: ADMIN_PASSWORD
+
+            - name: MQTT_BROKER
+              value: mosquitto
+
+            - name: MQTT_PORT
+              value: "1883"
+
+            - name: MQTT_TOPIC
+              value: CARDIMED/#
