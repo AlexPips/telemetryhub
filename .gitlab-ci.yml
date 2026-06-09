@@ -57,6 +57,5 @@ deploy:
     - kubectl rollout restart deployment/frontend --insecure-skip-tls-verify -n $K8S_NAMESPACE --timeout=300s
     - kubectl rollout status deployment/api-server --insecure-skip-tls-verify -n $K8S_NAMESPACE --timeout=300s
     - kubectl rollout status deployment/frontend   --insecure-skip-tls-verify -n $K8S_NAMESPACE --timeout=300s
-
   # rules:
   #   - if: '$CI_COMMIT_BRANCH == "main"'
