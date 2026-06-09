@@ -46,7 +46,7 @@ deploy:
     - kubectl config use-context rd-devs/k8s-connecttion:rnddevs-k8s-connection
 
     # Namespace
-    - kubectl apply -f k8s-files/namespace.yaml
+    - kubectl apply -f k8s/namespace.yaml
 
     # Registry pull secret (recreated every run to keep credentials fresh)
     - kubectl delete secret gitlab-registry -n $K8S_NAMESPACE --ignore-not-found
@@ -59,18 +59,18 @@ deploy:
         -n $K8S_NAMESPACE
 
     # Static resources
-    - kubectl apply -f k8s-files/secrets.yaml
-    - kubectl apply -f k8s-files/postgres.yaml
-    - kubectl apply -f k8s-files/mosquitto.yaml
+    - kubectl apply -f k8s/secrets.yaml
+    - kubectl apply -f k8s/postgres.yaml
+    - kubectl apply -f k8s/mosquitto.yaml
 
     # Templated deployments (envsubst replaces IMAGE_TAG and CI_REGISTRY_IMAGE)
     - export IMAGE_TAG=$CI_COMMIT_SHA
-    - envsubst < k8s-files/api.yaml      > /tmp/api.yaml
-    - envsubst < k8s-files/frontend.yaml > /tmp/frontend.yaml
+    - envsubst < k8s/api.yaml      > /tmp/api.yaml
+    - envsubst < k8s/frontend.yaml > /tmp/frontend.yaml
 
     - kubectl apply -f /tmp/api.yaml
     - kubectl apply -f /tmp/frontend.yaml
-    - kubectl apply -f k8s-files/ingress.yaml
+    - kubectl apply -f k8s/ingress.yaml
 
     # Rollout safety
     - kubectl rollout status deployment/api-server -n $K8S_NAMESPACE --timeout=300s
