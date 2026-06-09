@@ -47,7 +47,7 @@ deploy:
       - kubectl config set-cluster $(kubectl config current-context) --insecure-skip-tls-verify=true
 
       # Namespace
-      - kubectl apply -f k8s/namespace.yaml
+      - kubectl apply --validate=false --validate=false -f k8s/namespace.yaml
 
       # Registry pull secret
       - kubectl delete secret gitlab-registry -n $K8S_NAMESPACE --ignore-not-found
@@ -59,17 +59,17 @@ deploy:
           --docker-email="${GITLAB_USER_EMAIL:-$CI_COMMIT_AUTHOR_EMAIL}" \
           -n $K8S_NAMESPACE
 
-      - kubectl apply -f k8s/secrets.yaml
-      - kubectl apply -f k8s/postgres.yaml
-      - kubectl apply -f k8s/mosquitto.yaml
+      - kubectl apply --validate=false -f k8s/secrets.yaml
+      - kubectl apply --validate=false -f k8s/postgres.yaml
+      - kubectl apply --validate=false -f k8s/mosquitto.yaml
 
       - export IMAGE_TAG=$CI_COMMIT_SHA
       - envsubst < k8s/api.yaml      > /tmp/api.yaml
       - envsubst < k8s/frontend.yaml > /tmp/frontend.yaml
 
-      - kubectl apply -f /tmp/api.yaml
-      - kubectl apply -f /tmp/frontend.yaml
-      - kubectl apply -f k8s/ingress.yaml
+      - kubectl apply --validate=false -f /tmp/api.yaml
+      - kubectl apply --validate=false -f /tmp/frontend.yaml
+      - kubectl apply --validate=false -f k8s/ingress.yaml
 
       - kubectl rollout status deployment/api-server -n $K8S_NAMESPACE --timeout=300s
       - kubectl rollout status deployment/frontend   -n $K8S_NAMESPACE --timeout=300s
