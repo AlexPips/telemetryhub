@@ -50,7 +50,7 @@ spec:
               value: "admin@cardimed.local"
 
             - name: FRONTEND_URL
-              value: "http://cardimed.192.168.1.50.nip.io"
+              value: "https://cardimed.192.168.1.50.nip.io"
 
             - name: API_HOST
               value: "0.0.0.0"
