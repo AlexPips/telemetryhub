@@ -91,7 +91,6 @@ func (s *Server) setupRoutes() {
 	authGroup := v1.Group("", ocmw.JWTAuth(s.cfg.JWTSecret))
 
 	// Auth endpoints
-	authGroup.POST("/auth/register", s.authH.Register, ocmw.RequireRole("admin"))
 	authGroup.POST("/auth/logout", s.authH.Logout)
 	authGroup.GET("/auth/me", s.authH.Me)
 	authGroup.POST("/auth/change-password", s.authH.ChangePassword)

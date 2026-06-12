@@ -140,66 +140,6 @@ func (h *Handler) RegisterPublic(c echo.Context) error {
 	})
 }
 
-// Register        Create a new user (admin only)
-// @Summary      Register a new user
-// @Description  Creates a new platform user. Requires admin role. Passwords must be at least 8 characters.
-// @Tags         auth
-// @Accept       json
-// @Produce      json
-// @Security     BearerAuth
-// @Param        request body auth.RegisterRequest true "Registration details"
-// @Success      201 {object} auth.RegisterResponse
-// @Failure      400 {object} auth.ErrorResponse
-// @Failure      401 {object} auth.ErrorResponse
-// @Failure      403 {object} auth.ErrorResponse
-// @Failure      409 {object} auth.ErrorResponse
-// @Failure      500 {object} auth.ErrorResponse
-// @Router       /auth/register [post]
-func (h *Handler) Register(c echo.Context) error {
-	var req RegisterRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
-	}
-
-	// Validate
-	if req.Email == "" || req.Password == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Email and password are required"})
-	}
-	if len(req.Password) < 8 {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Password must be at least 8 characters"})
-	}
-
-	role := "viewer"
-	if req.Role == "admin" || req.Role == "viewer" {
-		role = req.Role
-	}
-
-	// Hash password
-	hash, err := HashPassword(req.Password)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Internal error"})
-	}
-
-	// Insert user
-	var userID int64
-	err = h.pool.QueryRow(c.Request().Context(), `
-		INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3)
-		RETURNING id
-	`, req.Email, hash, role).Scan(&userID)
-	if err != nil {
-		if strings.Contains(err.Error(), "duplicate") {
-			return c.JSON(http.StatusConflict, map[string]string{"error": "Email already exists"})
-		}
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create user"})
-	}
-
-	return c.JSON(http.StatusCreated, map[string]interface{}{
-		"id":    userID,
-		"email": req.Email,
-		"role":  role,
-	})
-}
-
 // Login           Authenticate user and return JWT token
 // @Summary      Login
 // @Description  Authenticates a user with email and password. Returns a JWT Bearer token and user info. The token must be sent as `Authorization: Bearer <token>` header for authenticated endpoints.
