@@ -1,7 +1,7 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "Real-time MQTT weather station dashboard with JWT authentication. Provides device management, sensor readings with TimescaleDB downsampling, and field rename configuration.",
+        "description": "Real-time multi-broker MQTT sensor dashboard with JWT authentication. Provides device management, sensor readings with TimescaleDB downsampling, and field rename configuration.",
         "title": "TelemetryHub API",
         "termsOfService": "https://telemetryhub.local/terms",
         "contact": {
@@ -14,7 +14,6 @@
         },
         "version": "1.0"
     },
-    "host": "localhost:8080",
     "basePath": "/api/v1",
     "paths": {
         "/auth/change-password": {
@@ -42,7 +41,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.ChangePasswordRequest"
+                            "$ref": "#/definitions/internal_auth.ChangePasswordRequest"
                         }
                     }
                 ],
@@ -50,25 +49,25 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.MessageResponse"
+                            "$ref": "#/definitions/internal_auth.MessageResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -94,7 +93,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.LoginRequest"
+                            "$ref": "#/definitions/internal_auth.LoginRequest"
                         }
                     }
                 ],
@@ -102,19 +101,19 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.LoginResponse"
+                            "$ref": "#/definitions/internal_auth.LoginResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -139,19 +138,19 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.MessageResponse"
+                            "$ref": "#/definitions/internal_auth.MessageResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -176,13 +175,13 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.UserResponse"
+                            "$ref": "#/definitions/internal_auth.UserResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -213,7 +212,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.RegisterRequest"
+                            "$ref": "#/definitions/internal_auth.RegisterRequest"
                         }
                     }
                 ],
@@ -221,37 +220,60 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/auth.RegisterResponse"
+                            "$ref": "#/definitions/internal_auth.RegisterResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/brokers": {
+            "get": {
+                "description": "Returns runtime statistics for every configured MQTT broker (admin only).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "List MQTT brokers",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/telemetryhub_internal_mqtt.BrokerStats"
+                            }
                         }
                     }
                 }
@@ -278,20 +300,20 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/handlers.DeviceRow"
+                                "$ref": "#/definitions/internal_handlers.DeviceRow"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -325,25 +347,25 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.DeviceRow"
+                            "$ref": "#/definitions/internal_handlers.DeviceRow"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -379,7 +401,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.UpdateDeviceRequest"
+                            "$ref": "#/definitions/internal_handlers.UpdateDeviceRequest"
                         }
                     }
                 ],
@@ -387,31 +409,31 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.MessageResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.MessageResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -443,25 +465,25 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.MessageResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.MessageResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -504,13 +526,13 @@
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -563,25 +585,25 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ReadingsResponse"
+                            "$ref": "#/definitions/internal_handlers.ReadingsResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -617,20 +639,20 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/handlers.FieldRename"
+                                "$ref": "#/definitions/internal_handlers.FieldRename"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -666,7 +688,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.CreateRenameRequest"
+                            "$ref": "#/definitions/internal_handlers.CreateRenameRequest"
                         }
                     }
                 ],
@@ -674,31 +696,31 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/auth.MessageResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.MessageResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -743,7 +765,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.UpdateRenameRequest"
+                            "$ref": "#/definitions/internal_handlers.UpdateRenameRequest"
                         }
                     }
                 ],
@@ -751,31 +773,31 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.MessageResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.MessageResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -814,25 +836,25 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.MessageResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.MessageResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -861,7 +883,7 @@
         }
     },
     "definitions": {
-        "auth.ChangePasswordRequest": {
+        "internal_auth.ChangePasswordRequest": {
             "type": "object",
             "properties": {
                 "current_password": {
@@ -872,7 +894,7 @@
                 }
             }
         },
-        "auth.ErrorResponse": {
+        "internal_auth.ErrorResponse": {
             "type": "object",
             "properties": {
                 "error": {
@@ -880,7 +902,7 @@
                 }
             }
         },
-        "auth.LoginRequest": {
+        "internal_auth.LoginRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -895,18 +917,18 @@
                 }
             }
         },
-        "auth.LoginResponse": {
+        "internal_auth.LoginResponse": {
             "type": "object",
             "properties": {
                 "token": {
                     "type": "string"
                 },
                 "user": {
-                    "$ref": "#/definitions/auth.UserInfo"
+                    "$ref": "#/definitions/internal_auth.UserInfo"
                 }
             }
         },
-        "auth.MessageResponse": {
+        "internal_auth.MessageResponse": {
             "type": "object",
             "properties": {
                 "message": {
@@ -914,7 +936,7 @@
                 }
             }
         },
-        "auth.RegisterRequest": {
+        "internal_auth.RegisterRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -933,7 +955,7 @@
                 }
             }
         },
-        "auth.RegisterResponse": {
+        "internal_auth.RegisterResponse": {
             "type": "object",
             "properties": {
                 "email": {
@@ -947,7 +969,7 @@
                 }
             }
         },
-        "auth.UserInfo": {
+        "internal_auth.UserInfo": {
             "type": "object",
             "properties": {
                 "email": {
@@ -958,7 +980,7 @@
                 }
             }
         },
-        "auth.UserResponse": {
+        "internal_auth.UserResponse": {
             "type": "object",
             "properties": {
                 "email": {
@@ -972,7 +994,7 @@
                 }
             }
         },
-        "handlers.CreateRenameRequest": {
+        "internal_handlers.CreateRenameRequest": {
             "type": "object",
             "properties": {
                 "chart_group": {
@@ -989,9 +1011,12 @@
                 }
             }
         },
-        "handlers.DeviceRow": {
+        "internal_handlers.DeviceRow": {
             "type": "object",
             "properties": {
+                "broker_name": {
+                    "type": "string"
+                },
                 "device_type": {
                     "type": "string"
                 },
@@ -1012,7 +1037,7 @@
                 }
             }
         },
-        "handlers.FieldRename": {
+        "internal_handlers.FieldRename": {
             "type": "object",
             "properties": {
                 "chart_group": {
@@ -1032,7 +1057,7 @@
                 }
             }
         },
-        "handlers.ReadingResult": {
+        "internal_handlers.ReadingResult": {
             "type": "object",
             "properties": {
                 "bucket": {
@@ -1058,13 +1083,13 @@
                 }
             }
         },
-        "handlers.ReadingsResponse": {
+        "internal_handlers.ReadingsResponse": {
             "type": "object",
             "properties": {
                 "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/handlers.ReadingResult"
+                        "$ref": "#/definitions/internal_handlers.ReadingResult"
                     }
                 },
                 "device_id": {
@@ -1084,7 +1109,7 @@
                 }
             }
         },
-        "handlers.UpdateDeviceRequest": {
+        "internal_handlers.UpdateDeviceRequest": {
             "type": "object",
             "properties": {
                 "device_type": {
@@ -1095,7 +1120,7 @@
                 }
             }
         },
-        "handlers.UpdateRenameRequest": {
+        "internal_handlers.UpdateRenameRequest": {
             "type": "object",
             "properties": {
                 "chart_group": {
@@ -1105,6 +1130,63 @@
                     "type": "string"
                 },
                 "unit": {
+                    "type": "string"
+                }
+            }
+        },
+        "telemetryhub_internal_auth.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "telemetryhub_internal_auth.MessageResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "telemetryhub_internal_mqtt.BrokerStats": {
+            "type": "object",
+            "properties": {
+                "broker": {
+                    "type": "string"
+                },
+                "connected": {
+                    "type": "boolean"
+                },
+                "dropped": {
+                    "type": "integer"
+                },
+                "errors": {
+                    "type": "integer"
+                },
+                "last_connected_at": {
+                    "type": "string"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "last_message_at": {
+                    "type": "string"
+                },
+                "messages_received": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "reconnect_attempts": {
+                    "type": "integer"
+                },
+                "topic": {
                     "type": "string"
                 }
             }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	_ "telemetryhub/internal/auth"
 )
 
 // ReadingsResponse represents the readings response.

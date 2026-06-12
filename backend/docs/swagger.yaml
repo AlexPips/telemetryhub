@@ -1,18 +1,18 @@
 basePath: /api/v1
 definitions:
-  auth.ChangePasswordRequest:
+  internal_auth.ChangePasswordRequest:
     properties:
       current_password:
         type: string
       new_password:
         type: string
     type: object
-  auth.ErrorResponse:
+  internal_auth.ErrorResponse:
     properties:
       error:
         type: string
     type: object
-  auth.LoginRequest:
+  internal_auth.LoginRequest:
     properties:
       email:
         type: string
@@ -22,19 +22,19 @@ definitions:
     - email
     - password
     type: object
-  auth.LoginResponse:
+  internal_auth.LoginResponse:
     properties:
       token:
         type: string
       user:
-        $ref: '#/definitions/auth.UserInfo'
+        $ref: '#/definitions/internal_auth.UserInfo'
     type: object
-  auth.MessageResponse:
+  internal_auth.MessageResponse:
     properties:
       message:
         type: string
     type: object
-  auth.RegisterRequest:
+  internal_auth.RegisterRequest:
     properties:
       email:
         type: string
@@ -47,7 +47,7 @@ definitions:
     - email
     - password
     type: object
-  auth.RegisterResponse:
+  internal_auth.RegisterResponse:
     properties:
       email:
         type: string
@@ -56,14 +56,14 @@ definitions:
       role:
         type: string
     type: object
-  auth.UserInfo:
+  internal_auth.UserInfo:
     properties:
       email:
         type: string
       role:
         type: string
     type: object
-  auth.UserResponse:
+  internal_auth.UserResponse:
     properties:
       email:
         type: string
@@ -72,7 +72,7 @@ definitions:
       role:
         type: string
     type: object
-  handlers.CreateRenameRequest:
+  internal_handlers.CreateRenameRequest:
     properties:
       chart_group:
         type: string
@@ -83,8 +83,10 @@ definitions:
       unit:
         type: string
     type: object
-  handlers.DeviceRow:
+  internal_handlers.DeviceRow:
     properties:
+      broker_name:
+        type: string
       device_type:
         type: string
       field_count:
@@ -98,7 +100,7 @@ definitions:
       name:
         type: string
     type: object
-  handlers.FieldRename:
+  internal_handlers.FieldRename:
     properties:
       chart_group:
         type: string
@@ -111,7 +113,7 @@ definitions:
       unit:
         type: string
     type: object
-  handlers.ReadingResult:
+  internal_handlers.ReadingResult:
     properties:
       bucket:
         type: string
@@ -128,11 +130,11 @@ definitions:
       value:
         type: number
     type: object
-  handlers.ReadingsResponse:
+  internal_handlers.ReadingsResponse:
     properties:
       data:
         items:
-          $ref: '#/definitions/handlers.ReadingResult'
+          $ref: '#/definitions/internal_handlers.ReadingResult'
         type: array
       device_id:
         type: string
@@ -145,14 +147,14 @@ definitions:
       to:
         type: string
     type: object
-  handlers.UpdateDeviceRequest:
+  internal_handlers.UpdateDeviceRequest:
     properties:
       device_type:
         type: string
       name:
         type: string
     type: object
-  handlers.UpdateRenameRequest:
+  internal_handlers.UpdateRenameRequest:
     properties:
       chart_group:
         type: string
@@ -161,14 +163,50 @@ definitions:
       unit:
         type: string
     type: object
-host: localhost:8080
+  telemetryhub_internal_auth.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  telemetryhub_internal_auth.MessageResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  telemetryhub_internal_mqtt.BrokerStats:
+    properties:
+      broker:
+        type: string
+      connected:
+        type: boolean
+      dropped:
+        type: integer
+      errors:
+        type: integer
+      last_connected_at:
+        type: string
+      last_error:
+        type: string
+      last_message_at:
+        type: string
+      messages_received:
+        type: integer
+      name:
+        type: string
+      port:
+        type: integer
+      reconnect_attempts:
+        type: integer
+      topic:
+        type: string
+    type: object
 info:
   contact:
     email: admin@telemetryhub.local
     name: API Support
-  description: Real-time MQTT weather station dashboard with JWT authentication. Provides
-    device management, sensor readings with TimescaleDB downsampling, and field rename
-    configuration.
+  description: Real-time multi-broker MQTT sensor dashboard with JWT authentication.
+    Provides device management, sensor readings with TimescaleDB downsampling, and
+    field rename configuration.
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
@@ -188,26 +226,26 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.ChangePasswordRequest'
+          $ref: '#/definitions/internal_auth.ChangePasswordRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/auth.MessageResponse'
+            $ref: '#/definitions/internal_auth.MessageResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Change password
@@ -226,22 +264,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.LoginRequest'
+          $ref: '#/definitions/internal_auth.LoginRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/auth.LoginResponse'
+            $ref: '#/definitions/internal_auth.LoginResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
       summary: Login
       tags:
       - auth
@@ -255,15 +293,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/auth.MessageResponse'
+            $ref: '#/definitions/internal_auth.MessageResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Logout
@@ -279,11 +317,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/auth.UserResponse'
+            $ref: '#/definitions/internal_auth.UserResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get current user
@@ -301,39 +339,55 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.RegisterRequest'
+          $ref: '#/definitions/internal_auth.RegisterRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/auth.RegisterResponse'
+            $ref: '#/definitions/internal_auth.RegisterResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Register a new user
       tags:
       - auth
+  /brokers:
+    get:
+      description: Returns runtime statistics for every configured MQTT broker (admin
+        only).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/telemetryhub_internal_mqtt.BrokerStats'
+            type: array
+      summary: List MQTT brokers
+      tags:
+      - admin
   /devices:
     get:
       description: Returns all known MQTT devices with field counts, ordered by last
@@ -345,16 +399,16 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/handlers.DeviceRow'
+              $ref: '#/definitions/internal_handlers.DeviceRow'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
       security:
       - BearerAuth: []
       summary: List devices
@@ -376,19 +430,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/auth.MessageResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.MessageResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Delete device
@@ -408,19 +462,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.DeviceRow'
+            $ref: '#/definitions/internal_handlers.DeviceRow'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get device
@@ -441,30 +495,30 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/handlers.UpdateDeviceRequest'
+          $ref: '#/definitions/internal_handlers.UpdateDeviceRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/auth.MessageResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.MessageResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Update device
@@ -491,11 +545,11 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get device fields
@@ -531,19 +585,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.ReadingsResponse'
+            $ref: '#/definitions/internal_handlers.ReadingsResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get readings
@@ -565,16 +619,16 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/handlers.FieldRename'
+              $ref: '#/definitions/internal_handlers.FieldRename'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
       security:
       - BearerAuth: []
       summary: List field renames
@@ -596,30 +650,30 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/handlers.CreateRenameRequest'
+          $ref: '#/definitions/internal_handlers.CreateRenameRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/auth.MessageResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.MessageResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Create field rename
@@ -646,19 +700,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/auth.MessageResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.MessageResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Delete field rename
@@ -685,30 +739,30 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/handlers.UpdateRenameRequest'
+          $ref: '#/definitions/internal_handlers.UpdateRenameRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/auth.MessageResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.MessageResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Update field rename

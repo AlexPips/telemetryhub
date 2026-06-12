@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	_ "telemetryhub/internal/auth"
 )
 
 // DeviceRow represents a device with its field count and broker attribution.

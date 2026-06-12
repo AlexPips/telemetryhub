@@ -20,7 +20,7 @@ migrate-status:
 
 # Swagger docs generation
 swagger:
-	swag init -g cmd/api-server/main.go --output docs
+	swag init -g cmd/api-server/main.go --parseDependency --parseInternal --output docs
 
 # Build commands
 build: swagger build-server build-simulator

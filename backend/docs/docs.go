@@ -48,7 +48,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.ChangePasswordRequest"
+                            "$ref": "#/definitions/internal_auth.ChangePasswordRequest"
                         }
                     }
                 ],
@@ -56,25 +56,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.MessageResponse"
+                            "$ref": "#/definitions/internal_auth.MessageResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -100,7 +100,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.LoginRequest"
+                            "$ref": "#/definitions/internal_auth.LoginRequest"
                         }
                     }
                 ],
@@ -108,19 +108,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.LoginResponse"
+                            "$ref": "#/definitions/internal_auth.LoginResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -145,19 +145,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.MessageResponse"
+                            "$ref": "#/definitions/internal_auth.MessageResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -182,13 +182,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.UserResponse"
+                            "$ref": "#/definitions/internal_auth.UserResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -219,7 +219,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.RegisterRequest"
+                            "$ref": "#/definitions/internal_auth.RegisterRequest"
                         }
                     }
                 ],
@@ -227,37 +227,60 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/auth.RegisterResponse"
+                            "$ref": "#/definitions/internal_auth.RegisterResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/brokers": {
+            "get": {
+                "description": "Returns runtime statistics for every configured MQTT broker (admin only).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "List MQTT brokers",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/telemetryhub_internal_mqtt.BrokerStats"
+                            }
                         }
                     }
                 }
@@ -284,20 +307,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/handlers.DeviceRow"
+                                "$ref": "#/definitions/internal_handlers.DeviceRow"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -331,25 +354,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.DeviceRow"
+                            "$ref": "#/definitions/internal_handlers.DeviceRow"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -385,7 +408,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.UpdateDeviceRequest"
+                            "$ref": "#/definitions/internal_handlers.UpdateDeviceRequest"
                         }
                     }
                 ],
@@ -393,31 +416,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.MessageResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.MessageResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -449,25 +472,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.MessageResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.MessageResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -510,13 +533,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -569,25 +592,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ReadingsResponse"
+                            "$ref": "#/definitions/internal_handlers.ReadingsResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -623,20 +646,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/handlers.FieldRename"
+                                "$ref": "#/definitions/internal_handlers.FieldRename"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -672,7 +695,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.CreateRenameRequest"
+                            "$ref": "#/definitions/internal_handlers.CreateRenameRequest"
                         }
                     }
                 ],
@@ -680,31 +703,31 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/auth.MessageResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.MessageResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -749,7 +772,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.UpdateRenameRequest"
+                            "$ref": "#/definitions/internal_handlers.UpdateRenameRequest"
                         }
                     }
                 ],
@@ -757,31 +780,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.MessageResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.MessageResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -820,25 +843,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.MessageResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.MessageResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -867,7 +890,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "auth.ChangePasswordRequest": {
+        "internal_auth.ChangePasswordRequest": {
             "type": "object",
             "properties": {
                 "current_password": {
@@ -878,7 +901,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.ErrorResponse": {
+        "internal_auth.ErrorResponse": {
             "type": "object",
             "properties": {
                 "error": {
@@ -886,7 +909,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.LoginRequest": {
+        "internal_auth.LoginRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -901,18 +924,18 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.LoginResponse": {
+        "internal_auth.LoginResponse": {
             "type": "object",
             "properties": {
                 "token": {
                     "type": "string"
                 },
                 "user": {
-                    "$ref": "#/definitions/auth.UserInfo"
+                    "$ref": "#/definitions/internal_auth.UserInfo"
                 }
             }
         },
-        "auth.MessageResponse": {
+        "internal_auth.MessageResponse": {
             "type": "object",
             "properties": {
                 "message": {
@@ -920,7 +943,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.RegisterRequest": {
+        "internal_auth.RegisterRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -939,7 +962,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.RegisterResponse": {
+        "internal_auth.RegisterResponse": {
             "type": "object",
             "properties": {
                 "email": {
@@ -953,7 +976,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.UserInfo": {
+        "internal_auth.UserInfo": {
             "type": "object",
             "properties": {
                 "email": {
@@ -964,7 +987,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.UserResponse": {
+        "internal_auth.UserResponse": {
             "type": "object",
             "properties": {
                 "email": {
@@ -978,7 +1001,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.CreateRenameRequest": {
+        "internal_handlers.CreateRenameRequest": {
             "type": "object",
             "properties": {
                 "chart_group": {
@@ -995,9 +1018,12 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.DeviceRow": {
+        "internal_handlers.DeviceRow": {
             "type": "object",
             "properties": {
+                "broker_name": {
+                    "type": "string"
+                },
                 "device_type": {
                     "type": "string"
                 },
@@ -1018,7 +1044,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.FieldRename": {
+        "internal_handlers.FieldRename": {
             "type": "object",
             "properties": {
                 "chart_group": {
@@ -1038,7 +1064,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.ReadingResult": {
+        "internal_handlers.ReadingResult": {
             "type": "object",
             "properties": {
                 "bucket": {
@@ -1064,13 +1090,13 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.ReadingsResponse": {
+        "internal_handlers.ReadingsResponse": {
             "type": "object",
             "properties": {
                 "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/handlers.ReadingResult"
+                        "$ref": "#/definitions/internal_handlers.ReadingResult"
                     }
                 },
                 "device_id": {
@@ -1090,7 +1116,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.UpdateDeviceRequest": {
+        "internal_handlers.UpdateDeviceRequest": {
             "type": "object",
             "properties": {
                 "device_type": {
@@ -1101,7 +1127,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.UpdateRenameRequest": {
+        "internal_handlers.UpdateRenameRequest": {
             "type": "object",
             "properties": {
                 "chart_group": {
@@ -1111,6 +1137,63 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "unit": {
+                    "type": "string"
+                }
+            }
+        },
+        "telemetryhub_internal_auth.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "telemetryhub_internal_auth.MessageResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "telemetryhub_internal_mqtt.BrokerStats": {
+            "type": "object",
+            "properties": {
+                "broker": {
+                    "type": "string"
+                },
+                "connected": {
+                    "type": "boolean"
+                },
+                "dropped": {
+                    "type": "integer"
+                },
+                "errors": {
+                    "type": "integer"
+                },
+                "last_connected_at": {
+                    "type": "string"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "last_message_at": {
+                    "type": "string"
+                },
+                "messages_received": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "reconnect_attempts": {
+                    "type": "integer"
+                },
+                "topic": {
                     "type": "string"
                 }
             }
@@ -1129,11 +1212,11 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "localhost:8080",
+	Host:             "",
 	BasePath:         "/api/v1",
 	Schemes:          []string{},
 	Title:            "TelemetryHub API",
-	Description:      "Real-time MQTT weather station dashboard with JWT authentication. Provides device management, sensor readings with TimescaleDB downsampling, and field rename configuration.",
+	Description:      "Real-time multi-broker MQTT sensor dashboard with JWT authentication. Provides device management, sensor readings with TimescaleDB downsampling, and field rename configuration.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
