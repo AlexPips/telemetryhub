@@ -43,7 +43,6 @@ deploy:
         -n $K8S_NAMESPACE --insecure-skip-tls-verify
     - kubectl apply --validate=false --insecure-skip-tls-verify -f k8s/secrets.yaml
     - kubectl apply --validate=false --insecure-skip-tls-verify -f k8s/postgres.yaml
-    - kubectl apply --validate=false --insecure-skip-tls-verify -f k8s/mosquitto.yaml
 
     - export IMAGE_TAG=$CI_COMMIT_SHA
     - envsubst < k8s/api.yaml      > /tmp/api.yaml

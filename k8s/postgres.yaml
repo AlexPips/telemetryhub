@@ -63,6 +63,33 @@ spec:
                 secretKeyRef:
                   name: cardimed-secrets
                   key: POSTGRES_PASSWORD
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - telemetryhub
+                - -d
+                - telemetryhub
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - telemetryhub
+                - -d
+                - telemetryhub
+            initialDelaySeconds: 15
+            periodSeconds: 20
           volumeMounts:
             - name: postgres-storage
               mountPath: /var/lib/postgresql/data

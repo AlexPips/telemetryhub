@@ -46,35 +46,47 @@ spec:
                   name: cardimed-secrets
                   key: ADMIN_PASSWORD
 
+            - name: ADMIN_EMAIL
+              value: "admin@cardimed.local"
+
+            - name: FRONTEND_URL
+              value: "http://cardimed.192.168.1.50.nip.io"
+
             - name: API_HOST
               value: "0.0.0.0"
 
             - name: API_PORT
               value: "8080"
 
-            - name: MQTT_BROKER
-              value: mosquitto
+            - name: MQTT_BROKERS
+              valueFrom:
+                secretKeyRef:
+                  name: cardimed-secrets
+                  key: MQTT_BROKERS
 
-            - name: MQTT_PORT
-              value: "1883"
+            - name: LOG_LEVEL
+              value: "info"
 
-            - name: MQTT_TOPIC
-              value: "CARDIMED/#"
-
-            - name: MQTT_QOS
-              value: "1"
-
-            - name: MQTT_TLS
-              value: "false"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
 
           livenessProbe:
-            httpGet:
-              path: /api/v1/health   # not /health
-              port: 8080
+            httpGet:
+              path: /api/v1/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
           readinessProbe:
-            httpGet:
-              path: /api/v1/health   # not /health
-              port: 8080
+            httpGet:
+              path: /api/v1/health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
 
 ---
 apiVersion: v1
