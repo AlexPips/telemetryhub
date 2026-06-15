@@ -23,9 +23,9 @@ func NewHandler(pool *pgxpool.Pool, secret string, expiry int) *Handler {
 
 // RegisterRequest represents the registration request body.
 type RegisterRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=8"`
-	Role     string `json:"role"`
+	Email           string `json:"email" validate:"required,email"`
+	Password        string `json:"password" validate:"required,min=8"`
+	ConfirmPassword string `json:"confirm_password" validate:"required"`
 }
 
 // LoginRequest represents the login request body.
@@ -91,11 +91,7 @@ type ChangePasswordRequest struct {
 // @Failure      500 {object} auth.ErrorResponse
 // @Router       /auth/register [post]
 func (h *Handler) RegisterPublic(c echo.Context) error {
-	var req struct {
-		Email           string `json:"email"`
-		Password        string `json:"password"`
-		ConfirmPassword string `json:"confirm_password"`
-	}
+	var req RegisterRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
 	}

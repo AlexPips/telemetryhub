@@ -82,7 +82,7 @@ func (s *Server) setupRoutes() {
 	e.POST("/api/v1/auth/login", s.authH.Login)
 	e.POST("/api/v1/auth/register", s.authH.RegisterPublic)
 	e.GET("/api/v1/health", s.healthHandler)
-	e.GET("/swagger/*", echoSwagger.WrapHandler)
+	e.GET("/api/swagger/*", echoSwagger.WrapHandler)
 
 	// API v1 group
 	v1 := e.Group("/api/v1")
