@@ -113,7 +113,16 @@ export async function getReadings(
   return res.json();
 }
 
-export async function getRenames(deviceId: string): Promise<FieldRename[]> {
+export async function updateDevice(deviceId: string, data: { name?: string; device_type?: string }): Promise<void> {
+  const res = await fetch(`${API_URL}/devices/${deviceId}`, {
+    method: 'PUT',
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update device');
+}
+
+export async function getRenames(deviceId: string): Promise<FieldRename[]>{
   const res = await fetch(`${API_URL}/devices/${deviceId}/renames`, { headers: getHeaders() });
   if (!res.ok) throw new Error('Failed to fetch renames');
   return res.json();

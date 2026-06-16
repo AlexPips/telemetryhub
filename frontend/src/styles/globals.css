@@ -285,7 +285,70 @@ input:focus, select:focus {
 
 .page-title {
   font-size: 24px;
+  margin: 0;
+}
+
+.page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 24px;
+}
+
+.page-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-title-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  transition: opacity 0.15s;
+  min-height: auto;
+}
+
+.page-title-edit-btn:hover {
+  opacity: 1;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.page-title-edit-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-title-input {
+  font-size: 22px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  width: 320px;
+  max-width: 100%;
+}
+
+.page-title-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.page-title-saving {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 /* ── Breadcrumb ── */
@@ -717,7 +780,15 @@ input:focus, select:focus {
 
   .page-title {
     font-size: 20px;
+  }
+
+  .page-title-row {
     margin-bottom: 16px;
+  }
+
+  .page-title-input {
+    font-size: 18px;
+    width: 100%;
   }
 
   .device-card {

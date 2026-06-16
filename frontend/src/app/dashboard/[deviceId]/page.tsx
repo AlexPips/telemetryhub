@@ -14,6 +14,7 @@ import {
   getRenames,
   createRename,
   updateRename,
+  updateDevice,
   deleteRename,
   type Device,
   type ReadingData,
@@ -57,6 +58,9 @@ export default function DeviceDetailPage() {
 
   const [device, setDevice] = useState<Device | null>(null);
   const [deviceLoading, setDeviceLoading] = useState(true);
+  const [editingName, setEditingName] = useState(false);
+  const [editNameInput, setEditNameInput] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
   const [fields, setFields] = useState<string[]>([]);
   const [storedFields, setStoredFields, fieldsHydrated] = useLocalStorage<string[]>(
     deviceId ? `telemetryhub:device:${deviceId}:fields` : 'telemetryhub:device:_:fields',
@@ -139,6 +143,38 @@ export default function DeviceDetailPage() {
       .then(setRenames)
       .catch(() => setRenames([]));
   }, [user, deviceId]);
+
+  const isAdmin = user?.role === 'admin';
+
+  function startEditingName() {
+    setEditNameInput(device?.name || '');
+    setEditingName(true);
+  }
+
+  async function handleNameSave() {
+    if (!device || !editNameInput.trim() || editNameInput.trim() === device.name) {
+      setEditingName(false);
+      return;
+    }
+    setNameSaving(true);
+    try {
+      await updateDevice(deviceId, { name: editNameInput.trim() });
+      setDevice({ ...device, name: editNameInput.trim() });
+      setEditingName(false);
+    } catch {
+      getDevice(deviceId).then(setDevice).catch(() => {});
+    } finally {
+      setNameSaving(false);
+    }
+  }
+
+  function handleNameKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') {
+      handleNameSave();
+    } else if (e.key === 'Escape') {
+      setEditingName(false);
+    }
+  }
 
   const fetchReadings = useCallback(async () => {
     if (!deviceId || selectedFields.length === 0) return;
@@ -274,7 +310,39 @@ export default function DeviceDetailPage() {
         <span>{device?.name || deviceId}</span>
       </div>
 
-      <h1 className="page-title">{device?.name || `Device: ${deviceId}`}</h1>
+      <div className="page-title-row">
+        {editingName ? (
+          <div className="page-title-edit-group">
+            <input
+              className="page-title-input"
+              value={editNameInput}
+              onChange={(e) => setEditNameInput(e.target.value)}
+              onKeyDown={handleNameKeyDown}
+              onBlur={handleNameSave}
+              autoFocus
+              disabled={nameSaving}
+            />
+            {nameSaving && <span className="page-title-saving">Saving…</span>}
+          </div>
+        ) : (
+          <h1 className="page-title">
+            <span>{device?.name || `Device: ${deviceId}`}</span>
+            {isAdmin && device && (
+              <button
+                type="button"
+                className="page-title-edit-btn"
+                onClick={startEditingName}
+                aria-label="Rename device"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </button>
+            )}
+          </h1>
+        )}
+      </div>
 
       {device && (
         <div className="device-info-bar">
