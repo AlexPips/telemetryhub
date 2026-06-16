@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Drawer } from 'vaul';
 
 const COLORS = [
@@ -188,7 +188,7 @@ export function FieldSelector({ fields, selected, onChange, labelFor }: FieldSel
         {groupedFields.groups.map((group) => {
           const collapsed = collapsedGroups.has(group.groupName);
           return (
-            <div key={group.groupName}>
+            <Fragment key={group.groupName}>
               <button
                 type="button"
                 className="field-selector-group-header"
@@ -201,18 +201,18 @@ export function FieldSelector({ fields, selected, onChange, labelFor }: FieldSel
                 <span className="field-selector-group-count">{group.fields.length}</span>
               </button>
               {!collapsed && group.fields.map((f) => renderFieldOption(f, fields.indexOf(f)))}
-            </div>
+            </Fragment>
           );
         })}
         {groupedFields.uncategorized.length > 0 && (
-          <div>
+          <Fragment>
             <div className="field-selector-group-header field-selector-group-other">
               <span className="field-selector-group-chevron">▾</span>
               <span className="field-selector-group-name">Other</span>
               <span className="field-selector-group-count">{groupedFields.uncategorized.length}</span>
             </div>
             {groupedFields.uncategorized.map((f) => renderFieldOption(f, fields.indexOf(f)))}
-          </div>
+          </Fragment>
         )}
       </>
     );

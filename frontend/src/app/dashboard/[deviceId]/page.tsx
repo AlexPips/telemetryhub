@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useLocalStorage } from '@/lib/use-local-storage';
 import { FieldSelector, type FieldLabel } from '@/components/field-selector';
+import { TimeRangeSelector } from '@/components/time-range-selector';
 import {
   getDevice,
   getDeviceFields,
@@ -291,16 +292,7 @@ export default function DeviceDetailPage() {
       <div className="chart-controls">
         <div>
           <label className="control-label">Time Range</label>
-          <select
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value)}
-          >
-            <option value="1h">1 Hour</option>
-            <option value="6h">6 Hours</option>
-            <option value="24h">24 Hours</option>
-            <option value="7d">7 Days</option>
-            <option value="30d">30 Days</option>
-          </select>
+          <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
         </div>
         <div>
           <label className="control-label">Fields</label>
