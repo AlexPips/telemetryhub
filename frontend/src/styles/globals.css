@@ -192,6 +192,77 @@ input:focus, select:focus {
   border-color: var(--danger);
 }
 
+/* Hamburger button */
+.navbar-hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  min-height: auto;
+}
+
+.hamburger-line {
+  width: 22px;
+  height: 2px;
+  background: var(--text-primary);
+  border-radius: 2px;
+  transition: transform 0.2s;
+}
+
+/* Desktop-only elements */
+.navbar-desktop-links,
+.navbar-desktop-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Mobile menu panel */
+.navbar-mobile-menu {
+  position: absolute;
+  top: var(--navbar-height);
+  left: 0;
+  right: 0;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 99;
+}
+
+.navbar-mobile-menu a,
+.navbar-mobile-menu button {
+  padding: 12px;
+  font-size: 16px;
+  text-align: left;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.navbar-mobile-user,
+.navbar-mobile-role {
+  padding: 4px 12px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 767px) {
+  .navbar-hamburger {
+    display: flex;
+  }
+
+  .navbar-desktop-links,
+  .navbar-desktop-info {
+    display: none;
+  }
+}
+
 /* ── Page Layout ── */
 
 .page-content {
@@ -239,6 +310,31 @@ input:focus, select:focus {
 
 .breadcrumb-sep {
   color: var(--border);
+}
+
+/* ── Device Info Bar ── */
+
+.device-info-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.device-info-item {
+  white-space: nowrap;
+}
+
+.device-info-sep {
+  color: var(--border);
+  font-size: 11px;
 }
 
 /* ── Device Grid ── */
@@ -458,9 +554,22 @@ input:focus, select:focus {
 
 .rename-form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+.rename-group-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(59, 130, 246, 0.1);
+  padding: 1px 8px;
+  border-radius: 4px;
+  margin-left: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .rename-form-actions {
@@ -580,6 +689,96 @@ input:focus, select:focus {
 
   .rename-input {
     width: 120px;
+  }
+}
+
+/* ── Mobile Responsive (767px and below) ── */
+
+@media (max-width: 767px) {
+  button {
+    min-height: 44px;
+    padding: 12px 20px;
+    font-size: 16px;
+  }
+
+  input, select {
+    min-height: 44px;
+    padding: 12px;
+    font-size: 16px;
+  }
+
+  button, a, input, select, label {
+    touch-action: manipulation;
+  }
+
+  .page-container {
+    padding: 16px;
+  }
+
+  .page-title {
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+
+  .device-card {
+    padding: 12px;
+  }
+  .device-card h3 {
+    font-size: 14px;
+  }
+  .device-card > div {
+    font-size: 13px;
+  }
+
+  .device-grid {
+    gap: 12px;
+  }
+
+  .chart-controls {
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .last-updated {
+    font-size: 12px;
+    padding: 6px 12px;
+    margin-top: 0;
+  }
+
+  .control-label {
+    font-size: 11px;
+  }
+
+  .rename-input {
+    width: 100%;
+  }
+
+  .rename-btn {
+    min-height: 36px;
+  }
+
+  .rename-group-badge {
+    font-size: 10px;
+  }
+
+  .field-chart-body {
+    height: 180px;
+  }
+
+  .field-chart-header {
+    margin-bottom: 8px;
+  }
+
+  .field-chart-title {
+    font-size: 13px;
+  }
+
+  .field-chart-unit {
+    font-size: 11px;
+  }
+
+  .field-chart-card {
+    padding: 12px;
   }
 }
 
@@ -752,4 +951,109 @@ input:focus, select:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 140px;
+}
+
+/* ── Field Selector Group Headers ── */
+
+.field-selector-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 14px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: none;
+  border-top: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.field-selector-group-header:hover {
+  background: var(--bg-card);
+}
+
+.field-selector-group-other {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.field-selector-group-chevron {
+  font-size: 8px;
+  color: var(--text-secondary);
+}
+
+.field-selector-group-name {
+  flex: 1;
+  text-align: left;
+}
+
+.field-selector-group-count {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* ── Field Selector Drawer (mobile) ── */
+
+.field-drawer-overlay {
+  background: rgba(0, 0, 0, 0.6);
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+}
+
+.field-drawer-content {
+  background: var(--bg-card);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 85vh;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+.field-drawer-header {
+  padding: 16px 20px 8px;
+  text-align: center;
+}
+
+.field-drawer-header h3 {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.field-drawer-search-row {
+  padding: 8px 16px;
+}
+
+.field-drawer-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0 8px;
+}
+
+.field-drawer-footer {
+  padding: 8px 16px 16px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 767px) {
+  .field-selector-popover {
+    display: none !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .field-drawer-overlay,
+  .field-drawer-content {
+    display: none;
+  }
 }

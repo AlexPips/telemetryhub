@@ -77,6 +77,12 @@ export async function getMe(): Promise<User> {
   return res.json();
 }
 
+export async function getDevice(deviceId: string): Promise<Device> {
+  const res = await fetch(`${API_URL}/devices/${deviceId}`, { headers: getHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch device');
+  return res.json();
+}
+
 export async function getDevices(): Promise<Device[]> {
   const res = await fetch(`${API_URL}/devices`, { headers: getHeaders() });
   if (!res.ok) throw new Error('Failed to fetch devices');

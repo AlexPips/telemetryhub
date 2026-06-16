@@ -7,12 +7,14 @@ import { useAuth } from '@/lib/auth-context';
 import { useLocalStorage } from '@/lib/use-local-storage';
 import { FieldSelector, type FieldLabel } from '@/components/field-selector';
 import {
+  getDevice,
   getDeviceFields,
   getReadings,
   getRenames,
   createRename,
   updateRename,
   deleteRename,
+  type Device,
   type ReadingData,
   type FieldRename,
 } from '@/lib/api';
@@ -52,6 +54,8 @@ export default function DeviceDetailPage() {
   const params = useParams();
   const deviceId = params.deviceId as string;
 
+  const [device, setDevice] = useState<Device | null>(null);
+  const [deviceLoading, setDeviceLoading] = useState(true);
   const [fields, setFields] = useState<string[]>([]);
   const [storedFields, setStoredFields, fieldsHydrated] = useLocalStorage<string[]>(
     deviceId ? `telemetryhub:device:${deviceId}:fields` : 'telemetryhub:device:_:fields',
@@ -87,16 +91,26 @@ export default function DeviceDetailPage() {
   const [editingRename, setEditingRename] = useState<string | null>(null);
   const [editDisplayName, setEditDisplayName] = useState('');
   const [editUnit, setEditUnit] = useState('');
+  const [editChartGroup, setEditChartGroup] = useState('');
   const [addingRename, setAddingRename] = useState(false);
   const [newRawField, setNewRawField] = useState('');
   const [newDisplayName, setNewDisplayName] = useState('');
   const [newUnit, setNewUnit] = useState('');
+  const [newChartGroup, setNewChartGroup] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
     }
   }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (!user || !deviceId) return;
+    getDevice(deviceId)
+      .then(setDevice)
+      .catch(() => setDevice(null))
+      .finally(() => setDeviceLoading(false));
+  }, [user, deviceId]);
 
   useEffect(() => {
     if (!user || !deviceId) return;
@@ -172,6 +186,7 @@ export default function DeviceDetailPage() {
     setEditingRename(r.raw_field);
     setEditDisplayName(r.display_name || '');
     setEditUnit(r.unit || '');
+    setEditChartGroup(r.chart_group || '');
   };
 
   const handleEditSave = async (rawField: string) => {
@@ -181,7 +196,7 @@ export default function DeviceDetailPage() {
         rawField,
         editDisplayName || undefined,
         editUnit || undefined,
-        undefined
+        editChartGroup.trim() || undefined
       );
       setEditingRename(null);
       const updated = await getRenames(deviceId);
@@ -211,12 +226,13 @@ export default function DeviceDetailPage() {
         newRawField.trim(),
         newDisplayName.trim() || undefined,
         newUnit.trim() || undefined,
-        undefined
+        newChartGroup.trim() || undefined
       );
       setAddingRename(false);
       setNewRawField('');
       setNewDisplayName('');
       setNewUnit('');
+      setNewChartGroup('');
       const updated = await getRenames(deviceId);
       setRenames(updated);
       fetchReadings();
@@ -240,6 +256,7 @@ export default function DeviceDetailPage() {
       field,
       displayName: renames.find((r) => r.raw_field === field)?.display_name,
       unit: renames.find((r) => r.raw_field === field)?.unit,
+      chartGroup: renames.find((r) => r.raw_field === field)?.chart_group,
     }),
     [renames]
   );
@@ -253,10 +270,22 @@ export default function DeviceDetailPage() {
       <div className="breadcrumb">
         <Link href="/dashboard">Dashboard</Link>
         <span className="breadcrumb-sep">/</span>
-        <span>{deviceId}</span>
+        <span>{device?.name || deviceId}</span>
       </div>
 
-      <h1 className="page-title">Device: {deviceId}</h1>
+      <h1 className="page-title">{device?.name || `Device: ${deviceId}`}</h1>
+
+      {device && (
+        <div className="device-info-bar">
+          <span className="device-info-item">ID: {device.id}</span>
+          <span className="device-info-sep">|</span>
+          <span className="device-info-item">Type: {device.device_type}</span>
+          <span className="device-info-sep">|</span>
+          <span className="device-info-item">Broker: {device.broker_name || '—'}</span>
+          <span className="device-info-sep">|</span>
+          <span className="device-info-item">Fields: {device.field_count}</span>
+        </div>
+      )}
 
       {/* Controls */}
       <div className="chart-controls">
@@ -363,6 +392,14 @@ export default function DeviceDetailPage() {
                   placeholder="e.g. °C"
                 />
               </div>
+              <div>
+                <label className="control-label">Group</label>
+                <input
+                  value={newChartGroup}
+                  onChange={(e) => setNewChartGroup(e.target.value)}
+                  placeholder="e.g. Environment"
+                />
+              </div>
             </div>
             <div className="rename-form-actions">
               <button className="primary" onClick={handleAddRename}>
@@ -375,6 +412,7 @@ export default function DeviceDetailPage() {
                   setNewRawField('');
                   setNewDisplayName('');
                   setNewUnit('');
+                  setNewChartGroup('');
                 }}
               >
                 Cancel
@@ -422,6 +460,12 @@ export default function DeviceDetailPage() {
                         onChange={(e) => setEditUnit(e.target.value)}
                         placeholder="Unit"
                       />
+                      <input
+                        className="rename-input"
+                        value={editChartGroup}
+                        onChange={(e) => setEditChartGroup(e.target.value)}
+                        placeholder="Group"
+                      />
                       <button
                         className="primary rename-btn"
                         onClick={() => handleEditSave(r.raw_field)}
@@ -442,6 +486,11 @@ export default function DeviceDetailPage() {
                         {r.unit ? (
                           <span className="rename-unit">
                             {' '}({r.unit})
+                          </span>
+                        ) : null}
+                        {r.chart_group ? (
+                          <span className="rename-group-badge">
+                            {r.chart_group}
                           </span>
                         ) : null}
                       </span>
@@ -528,6 +577,18 @@ function FieldSelect({
   );
 }
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return isMobile;
+}
+
 // ── Per-Field Chart Component ──
 
 function FieldChart({
@@ -545,6 +606,7 @@ function FieldChart({
 }) {
   const fieldData = readings.filter((r) => r.field_name === field);
   const color = COLORS[index % COLORS.length];
+  const isMobile = useIsMobile();
 
   const dataset = {
     label: displayName,
@@ -587,15 +649,25 @@ function FieldChart({
                     },
                   },
                   grid: { color: 'rgba(255,255,255,0.05)' },
-                  ticks: { color: '#94a3b8', maxTicksLimit: 8 },
+                  ticks: {
+                    color: '#94a3b8',
+                    maxTicksLimit: isMobile ? 4 : 8,
+                    maxRotation: isMobile ? 45 : 0,
+                    font: { size: isMobile ? 10 : 12 },
+                  },
                 },
                 y: {
                   grid: { color: 'rgba(255,255,255,0.05)' },
-                  ticks: { color: '#94a3b8' },
+                  ticks: {
+                    color: '#94a3b8',
+                    maxTicksLimit: isMobile ? 4 : 8,
+                    font: { size: isMobile ? 10 : 12 },
+                  },
                   title: {
                     display: !!unit,
                     text: unit,
                     color: '#94a3b8',
+                    font: { size: isMobile ? 10 : 12 },
                   },
                 },
               },
