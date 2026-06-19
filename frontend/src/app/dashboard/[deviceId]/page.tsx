@@ -103,6 +103,36 @@ export default function DeviceDetailPage() {
   const [newUnit, setNewUnit] = useState('');
   const [newChartGroup, setNewChartGroup] = useState('');
 
+  // Group selected fields by chart_group for combined charts
+  const chartGroups = useMemo(() => {
+    if (!fieldsHydrated) return { groups: [], ungrouped: [] };
+    const fieldGroupMap = new Map<string, string>();
+    for (const r of renames) {
+      if (r.chart_group?.trim()) {
+        fieldGroupMap.set(r.raw_field, r.chart_group.trim());
+      }
+    }
+    const groupMap = new Map<string, string[]>();
+    const ungrouped: string[] = [];
+    for (const field of selectedFields) {
+      const group = fieldGroupMap.get(field);
+      if (group) {
+        const existing = groupMap.get(group);
+        if (existing) {
+          existing.push(field);
+        } else {
+          groupMap.set(group, [field]);
+        }
+      } else {
+        ungrouped.push(field);
+      }
+    }
+    const groups = Array.from(groupMap.entries()).map(
+      ([groupName, fields]) => ({ groupName, fields })
+    );
+    return { groups, ungrouped };
+  }, [selectedFields, renames, fieldsHydrated]);
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
@@ -130,9 +160,9 @@ export default function DeviceDetailPage() {
   useEffect(() => {
     if (fields.length === 0 || !fieldsHydrated) return;
     if (autoSelected.current) return;
+    autoSelected.current = true;
     const stored = storedFields.filter((f) => fields.includes(f));
     if (stored.length > 0) return;
-    autoSelected.current = true;
     setStoredFields(fields.slice(0, 5));
   }, [fields, fieldsHydrated, storedFields, setStoredFields]);
 
@@ -387,7 +417,6 @@ export default function DeviceDetailPage() {
         )}
       </div>
 
-      {/* Per-field Chart Grid */}
       {selectedFields.length === 0 ? (
         <div className="card" style={{ padding: '48px', textAlign: 'center' }}>
           <p style={{ color: 'var(--text-secondary)' }}>
@@ -402,7 +431,16 @@ export default function DeviceDetailPage() {
         </div>
       ) : (
         <div className="chart-grid">
-          {selectedFields.map((field, i) => (
+          {chartGroups.groups.map((group) => (
+            <GroupChart
+              key={group.groupName}
+              groupName={group.groupName}
+              fields={group.fields}
+              readings={readings}
+              renames={renames}
+            />
+          ))}
+          {chartGroups.ungrouped.map((field, i) => (
             <FieldChart
               key={field}
               field={field}
@@ -590,24 +628,42 @@ function FieldSelect({
   onChange: (v: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
   const ref = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
+        setSearch('');
       }
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  useEffect(() => {
+    if (open && searchRef.current) {
+      searchRef.current.focus();
+    }
+  }, [open]);
+
+  const filteredFields = useMemo(() => {
+    if (!search.trim()) return fields;
+    const q = search.toLowerCase();
+    return fields.filter((f) => f.toLowerCase().includes(q));
+  }, [fields, search]);
+
   return (
     <div ref={ref} className="field-select">
       <button
         className="field-select-trigger"
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          setOpen(!open);
+          setSearch('');
+        }}
       >
         <span className={value ? '' : 'field-select-placeholder'}>
           {value || '-- Select field --'}
@@ -616,21 +672,52 @@ function FieldSelect({
       </button>
       {open && (
         <div className="field-select-dropdown">
-          {fields.map((f) => (
-            <button
-              key={f}
-              className={
-                'field-select-option' + (f === value ? ' selected' : '')
-              }
-              type="button"
-              onClick={() => {
-                onChange(f);
-                setOpen(false);
-              }}
-            >
-              {f}
-            </button>
-          ))}
+          <div
+            style={{
+              padding: '6px',
+              borderBottom: '1px solid var(--border)',
+            }}
+          >
+            <input
+              ref={searchRef}
+              type="text"
+              placeholder="Search fields…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ width: '100%', fontSize: '12px', padding: '6px 8px' }}
+            />
+          </div>
+          <div className="field-select-list" style={{ maxHeight: '180px', overflowY: 'auto' }}>
+            {filteredFields.length === 0 ? (
+              <div
+                className="field-select-placeholder"
+                style={{
+                  padding: '12px',
+                  textAlign: 'center',
+                  fontSize: '12px',
+                }}
+              >
+                No fields match
+              </div>
+            ) : (
+              filteredFields.map((f) => (
+                <button
+                  key={f}
+                  className={
+                    'field-select-option' + (f === value ? ' selected' : '')
+                  }
+                  type="button"
+                  onClick={() => {
+                    onChange(f);
+                    setOpen(false);
+                    setSearch('');
+                  }}
+                >
+                  {f}
+                </button>
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -747,6 +834,151 @@ function FieldChart({
                       },
                     },
                   },
+              },
+              interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false,
+              },
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Grouped Chart Component ──
+
+function GroupChart({
+  groupName,
+  fields,
+  readings,
+  renames,
+}: {
+  groupName: string;
+  fields: string[];
+  readings: ReadingData[];
+  renames: FieldRename[];
+}) {
+  const isMobile = useIsMobile();
+
+  const fieldLabel = useCallback(
+    (field: string) => {
+      const rename = renames.find((r) => r.raw_field === field);
+      return {
+        displayName: rename?.display_name || field,
+        unit: rename?.unit || '',
+      };
+    },
+    [renames]
+  );
+
+  const datasets = fields.map((field, i) => {
+    const fieldData = readings.filter((r) => r.field_name === field);
+    const label = fieldLabel(field);
+    const color = COLORS[i % COLORS.length];
+
+    return {
+      label: label.displayName,
+      data: fieldData.map((r) => ({
+        x: new Date(r.bucket),
+        y: r.value,
+      })),
+      borderColor: color,
+      backgroundColor: color + '20',
+      tension: 0.3,
+      pointRadius: 0,
+      borderWidth: 2,
+    };
+  });
+
+  const primaryUnit = fields.reduce((unit, field) => {
+    if (unit) return unit;
+    return fieldLabel(field).unit;
+  }, '');
+
+  return (
+    <div className="field-chart-card">
+      <div className="field-chart-header">
+        <span className="field-chart-title">{groupName}</span>
+      </div>
+      <div className="field-chart-body">
+        {datasets.every((d) => d.data.length === 0) ? (
+          <p className="chart-empty">No data</p>
+        ) : (
+          <Line
+            data={{ datasets }}
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              animation: false,
+              scales: {
+                x: {
+                  type: 'time',
+                  time: {
+                    tooltipFormat: 'PPpp',
+                    displayFormats: {
+                      hour: 'HH:mm',
+                      day: 'MMM d',
+                    },
+                  },
+                  grid: { color: 'rgba(255,255,255,0.05)' },
+                  ticks: {
+                    color: '#94a3b8',
+                    maxTicksLimit: isMobile ? 4 : 8,
+                    maxRotation: isMobile ? 45 : 0,
+                    font: { size: isMobile ? 10 : 12 },
+                  },
+                },
+                y: {
+                  grid: { color: 'rgba(255,255,255,0.05)' },
+                  ticks: {
+                    color: '#94a3b8',
+                    maxTicksLimit: isMobile ? 4 : 8,
+                    font: { size: isMobile ? 10 : 12 },
+                  },
+                  title: primaryUnit
+                    ? {
+                        display: true,
+                        text: primaryUnit,
+                        color: '#94a3b8',
+                        font: { size: isMobile ? 10 : 12 },
+                      }
+                    : undefined,
+                },
+              },
+              plugins: {
+                legend: {
+                  display: true,
+                  position: 'top',
+                  labels: {
+                    color: '#94a3b8',
+                    font: { size: isMobile ? 11 : 12 },
+                    boxWidth: 7,
+                    boxHeight: 7,
+                    padding: 8,
+                    usePointStyle: false,
+                  },
+                },
+                tooltip: {
+                  callbacks: {
+                    label: function (context) {
+                      let label = context.dataset.label || '';
+                      if (label) label += ': ';
+                      const val = context.parsed.y;
+                      if (val !== null) {
+                        label += val.toFixed(1);
+                        const dsIndex = context.datasetIndex;
+                        if (dsIndex !== undefined && dsIndex < fields.length) {
+                          const unit = fieldLabel(fields[dsIndex]).unit;
+                          if (unit) label += ' ' + unit;
+                        }
+                      }
+                      return label;
+                    },
+                  },
+                },
               },
               interaction: {
                 mode: 'nearest',

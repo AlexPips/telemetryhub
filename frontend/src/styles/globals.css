@@ -4,6 +4,32 @@
   box-sizing: border-box;
 }
 
+/* ── Custom Scrollbar (dark theme) ── */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
 :root {
   --bg-primary: #0f172a;
   --bg-secondary: #1e293b;
@@ -472,8 +498,8 @@ input:focus, select:focus {
 /* ── Chart Grid ── */
 
 .chart-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
 }
 
@@ -684,9 +710,29 @@ input:focus, select:focus {
   border: 1px solid var(--border);
   border-radius: 6px;
   z-index: 50;
-  max-height: 200px;
-  overflow-y: auto;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.field-select-list {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.field-select-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.field-select-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.field-select-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.field-select-list::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
 
 .field-select-option {
