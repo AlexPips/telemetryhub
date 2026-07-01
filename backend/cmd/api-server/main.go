@@ -1,6 +1,6 @@
 // @title           TelemetryHub API
 // @version         1.0
-// @description     Real-time multi-broker MQTT sensor dashboard with JWT authentication. Provides device management, sensor readings with TimescaleDB downsampling, and field rename configuration.
+// @description     Real-time multi-broker MQTT sensor dashboard with JWT authentication. Provides device management, sensor readings, and field rename configuration.
 // @termsOfService  https://telemetryhub.local/terms
 
 // @contact.name   API Support

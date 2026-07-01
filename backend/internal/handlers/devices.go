@@ -20,15 +20,13 @@ type DeviceRow struct {
 	BrokerName string    `json:"broker_name"`
 }
 
-// ReadingResult represents a downsampled reading with metadata.
+// ReadingResult represents a sensor reading with metadata.
 type ReadingResult struct {
 	Bucket      time.Time `json:"bucket"`
 	FieldName   string    `json:"field_name"`
 	DisplayName string    `json:"display_name"`
 	Unit        string    `json:"unit"`
 	Value       float64   `json:"value"`
-	Min         float64   `json:"min"`
-	Max         float64   `json:"max"`
 }
 
 // FieldRename represents a field rename configuration.

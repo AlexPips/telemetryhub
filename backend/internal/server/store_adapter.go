@@ -79,29 +79,17 @@ func (a *StoreAdapter) DeleteDevice(ctx context.Context, deviceID string) error 
 }
 
 func (a *StoreAdapter) GetReadings(ctx context.Context, deviceID string, fields []string, from, to time.Time) ([]handlers.ReadingResult, error) {
-	timeRange := to.Sub(from)
-	var bucket string
-	switch {
-	case timeRange < 24*time.Hour:
-		bucket = "15 minutes"
-	case timeRange < 7*24*time.Hour:
-		bucket = "1 hour"
-	default:
-		bucket = "1 day"
-	}
-
 	rows, err := a.pool.Query(ctx, `
-		SELECT time_bucket($1, ts) as bucket, r.field_name,
-		       AVG(r.value) as value, MIN(r.value) as min, MAX(r.value) as max,
+		SELECT r.ts as bucket, r.field_name,
+		       r.value as value,
 		       COALESCE(fr.display_name, r.field_name) as display_name,
 		       COALESCE(fr.unit, '') as unit
 		FROM readings r
 		LEFT JOIN field_renames fr ON fr.device_id = r.device_id AND fr.raw_field = r.field_name
-		WHERE r.device_id = $2 AND r.field_name = ANY($3)
-		  AND r.ts > $4 AND r.ts < $5
-		GROUP BY bucket, r.field_name, fr.display_name, fr.unit
-		ORDER BY bucket
-	`, bucket, deviceID, fields, from, to)
+		WHERE r.device_id = $1 AND r.field_name = ANY($2)
+		  AND r.ts > $3 AND r.ts < $4
+		ORDER BY r.ts
+	`, deviceID, fields, from, to)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +98,7 @@ func (a *StoreAdapter) GetReadings(ctx context.Context, deviceID string, fields 
 	var results []handlers.ReadingResult
 	for rows.Next() {
 		var r handlers.ReadingResult
-		if err := rows.Scan(&r.Bucket, &r.FieldName, &r.Value, &r.Min, &r.Max, &r.DisplayName, &r.Unit); err != nil {
+		if err := rows.Scan(&r.Bucket, &r.FieldName, &r.Value, &r.DisplayName, &r.Unit); err != nil {
 			return nil, err
 		}
 		results = append(results, r)

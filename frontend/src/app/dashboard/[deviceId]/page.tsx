@@ -75,7 +75,6 @@ export default function DeviceDetailPage() {
   const [readings, setReadings] = useState<ReadingData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const autoSelected = useRef(false);
-
   const selectedFields = useMemo(() => {
     if (!fieldsHydrated) return [];
     return storedFields.filter((f) => fields.includes(f));
@@ -209,26 +208,26 @@ export default function DeviceDetailPage() {
   const fetchReadings = useCallback(async () => {
     if (!deviceId || selectedFields.length === 0) return;
 
-    const now = new Date();
-    let from;
+    const to = new Date();
+    let from: Date;
     switch (timeRange) {
       case '1h':
-        from = new Date(now.getTime() - 1 * 60 * 60 * 1000);
+        from = new Date(to.getTime() - 1 * 60 * 60 * 1000);
         break;
       case '6h':
-        from = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+        from = new Date(to.getTime() - 6 * 60 * 60 * 1000);
         break;
       case '24h':
-        from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
         break;
       case '7d':
-        from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000);
         break;
       case '30d':
-        from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        from = new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
         break;
       default:
-        from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
     }
 
     try {
@@ -236,7 +235,7 @@ export default function DeviceDetailPage() {
         deviceId,
         selectedFields,
         from.toISOString(),
-        now.toISOString()
+        to.toISOString()
       );
       setReadings(result.data);
     } catch {
@@ -426,7 +425,7 @@ export default function DeviceDetailPage() {
       ) : readings.length === 0 ? (
         <div className="card" style={{ padding: '48px', textAlign: 'center' }}>
           <p style={{ color: 'var(--text-secondary)' }}>
-            No data available for selected fields and time range.
+            No data for this time range.
           </p>
         </div>
       ) : (
@@ -751,9 +750,61 @@ function FieldChart({
   displayName: string;
   unit: string;
 }) {
-  const fieldData = readings.filter((r) => r.field_name === field);
+  const allFieldData = useMemo(() => readings.filter((r) => r.field_name === field), [readings, field]);
+  const [zoomRange, setZoomRange] = useState<{ from: string; to: string } | null>(null);
   const color = COLORS[index % COLORS.length];
   const isMobile = useIsMobile();
+  const chartRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dragState, setDragState] = useState<{
+    active: boolean;
+    startX: number;
+    curX: number;
+  } | null>(null);
+
+  function getChartX(clientX: number): number {
+    if (!containerRef.current) return 0;
+    const rect = containerRef.current.getBoundingClientRect();
+    return clientX - rect.left;
+  }
+
+  function handleMouseDown(e: React.MouseEvent) {
+    setDragState({ active: true, startX: getChartX(e.clientX), curX: getChartX(e.clientX) });
+  }
+
+  function handleMouseMove(e: React.MouseEvent) {
+    if (!dragState?.active) return;
+    setDragState({ ...dragState, curX: getChartX(e.clientX) });
+  }
+
+  function handleMouseUp() {
+    if (!dragState?.active) return;
+    const { startX, curX } = dragState;
+    const diff = Math.abs(curX - startX);
+    setDragState(null);
+    if (diff < 10) return;
+
+    const chart = chartRef.current;
+    if (!chart?.scales?.x) return;
+    const xScale = chart.scales.x;
+    const from = new Date(xScale.getValueForPixel(Math.min(startX, curX))).toISOString();
+    const to = new Date(xScale.getValueForPixel(Math.max(startX, curX))).toISOString();
+    setZoomRange({ from, to });
+  }
+
+  function handleResetZoom() {
+    setZoomRange(null);
+  }
+
+  const fieldData = useMemo(() => {
+    if (!zoomRange) return allFieldData;
+    const from = new Date(zoomRange.from).getTime();
+    const to = new Date(zoomRange.to).getTime();
+    return allFieldData.filter((r) => {
+      const t = new Date(r.bucket).getTime();
+      return t >= from && t <= to;
+    });
+  }, [allFieldData, zoomRange]);
 
   const dataset = {
     label: displayName,
@@ -771,82 +822,118 @@ function FieldChart({
   return (
     <div className="field-chart-card">
       <div className="field-chart-header">
-        <span className="field-chart-dot" style={{ background: color }} />
-        <span className="field-chart-title">{displayName}</span>
-        {unit && <span className="field-chart-unit">({unit})</span>}
+        <div className="field-chart-header-left">
+          <span className="field-chart-dot" style={{ background: color }} />
+          <span className="field-chart-title">{displayName}</span>
+          {unit && <span className="field-chart-unit">({unit})</span>}
+        </div>
+        {zoomRange && (
+          <div className="field-chart-header-right">
+            <span className="zoom-indicator">
+              {new Date(zoomRange.from).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
+              {' — '}
+              {new Date(zoomRange.to).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
+            </span>
+            <button className="secondary" onClick={handleResetZoom} style={{ padding: '4px 10px', fontSize: '12px' }}>
+              ← Reset
+            </button>
+          </div>
+        )}
       </div>
-      <div className="field-chart-body">
-        {fieldData.length === 0 ? (
-          <p className="chart-empty">No data</p>
-        ) : (
-          <Line
-            data={{ datasets: [dataset] }}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              animation: false,
-              scales: {
-                x: {
-                  type: 'time',
-                  time: {
-                    tooltipFormat: 'PPpp',
-                    displayFormats: {
-                      hour: 'HH:mm',
-                      day: 'MMM d',
-                    },
-                  },
-                  grid: { color: 'rgba(255,255,255,0.05)' },
-                  ticks: {
-                    color: '#94a3b8',
-                    maxTicksLimit: isMobile ? 4 : 8,
-                    maxRotation: isMobile ? 45 : 0,
-                    autoSkip: false,
-                    font: { size: isMobile ? 10 : 12 },
-                  },
-                  title: {
-                    display: true,
-                    text: 'Time',
-                    color: '#94a3b8',
-                    font: { size: isMobile ? 10 : 12 },
+      <div
+        ref={containerRef}
+        className="field-chart-body"
+        style={{ position: 'relative', cursor: dragState?.active ? 'crosshair' : 'default' }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={() => { if (dragState?.active) handleMouseUp(); }}
+        onDoubleClick={handleResetZoom}
+      >
+        <Line
+          ref={chartRef}
+          data={{ datasets: [dataset] }}
+          options={{
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            scales: {
+              x: {
+                type: 'time',
+                time: {
+                  tooltipFormat: 'PPpp',
+                  displayFormats: {
+                    hour: 'HH:mm',
+                    day: 'MMM d',
                   },
                 },
-                y: {
-                  grid: { color: 'rgba(255,255,255,0.05)' },
-                  ticks: {
-                    color: '#94a3b8',
-                    maxTicksLimit: isMobile ? 4 : 8,
-                    font: { size: isMobile ? 10 : 12 },
-                  },
-                  title: {
-                    display: !!unit,
-                    text: unit,
-                    color: '#94a3b8',
-                    font: { size: isMobile ? 10 : 12 },
+                grid: { color: 'rgba(255,255,255,0.05)' },
+                ticks: {
+                  color: '#94a3b8',
+                  maxTicksLimit: isMobile ? 4 : 8,
+                  maxRotation: isMobile ? 45 : 0,
+                  autoSkip: false,
+                  font: { size: isMobile ? 10 : 12 },
+                },
+                title: {
+                  display: true,
+                  text: 'Time',
+                  color: '#94a3b8',
+                  font: { size: isMobile ? 10 : 12 },
+                },
+              },
+              y: {
+                grid: { color: 'rgba(255,255,255,0.05)' },
+                ticks: {
+                  color: '#94a3b8',
+                  maxTicksLimit: isMobile ? 4 : 8,
+                  font: { size: isMobile ? 10 : 12 },
+                },
+                title: {
+                  display: !!unit,
+                  text: unit,
+                  color: '#94a3b8',
+                  font: { size: isMobile ? 10 : 12 },
+                },
+              },
+            },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    let label = context.dataset.label || '';
+                    if (label) label += ': ';
+                    const val = context.parsed.y;
+                    if (val !== null) {
+                      label += val.toFixed(1);
+                      if (unit) label += ' ' + unit;
+                    }
+                    return label;
                   },
                 },
               },
-              plugins: {
-                legend: { display: false },
-                  tooltip: {
-                    callbacks: {
-                      label: function (context) {
-                        let label = context.dataset.label || '';
-                        if (label) label += ': ';
-                        const val = context.parsed.y;
-                        if (val !== null) {
-                          label += val.toFixed(1);
-                          if (unit) label += ' ' + unit;
-                        }
-                        return label;
-                      },
-                    },
-                  },
-              },
-              interaction: {
-                mode: 'nearest',
-                axis: 'x',
-                intersect: false,
-              },
+            },
+            interaction: {
+              mode: 'nearest',
+              axis: 'x',
+              intersect: false,
+            },
+          }}
+        />
+        {dragState?.active && (
+          <div
+            style={{
+              position: 'absolute',
+              left: Math.min(dragState.startX, dragState.curX),
+              width: Math.abs(dragState.curX - dragState.startX),
+              top: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(59,130,246,0.15)',
+              borderLeft: '1px solid rgba(59,130,246,0.5)',
+              borderRight: '1px solid rgba(59,130,246,0.5)',
+              pointerEvents: 'none',
+              zIndex: 10,
             }}
           />
         )}
@@ -869,6 +956,48 @@ function GroupChart({
   renames: FieldRename[];
 }) {
   const isMobile = useIsMobile();
+  const chartRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [zoomRange, setZoomRange] = useState<{ from: string; to: string } | null>(null);
+  const [dragState, setDragState] = useState<{
+    active: boolean;
+    startX: number;
+    curX: number;
+  } | null>(null);
+
+  function getChartX(clientX: number): number {
+    if (!containerRef.current) return 0;
+    const rect = containerRef.current.getBoundingClientRect();
+    return clientX - rect.left;
+  }
+
+  function handleMouseDown(e: React.MouseEvent) {
+    setDragState({ active: true, startX: getChartX(e.clientX), curX: getChartX(e.clientX) });
+  }
+
+  function handleMouseMove(e: React.MouseEvent) {
+    if (!dragState?.active) return;
+    setDragState({ ...dragState, curX: getChartX(e.clientX) });
+  }
+
+  function handleMouseUp() {
+    if (!dragState?.active) return;
+    const { startX, curX } = dragState;
+    const diff = Math.abs(curX - startX);
+    setDragState(null);
+    if (diff < 10) return;
+
+    const chart = chartRef.current;
+    if (!chart?.scales?.x) return;
+    const xScale = chart.scales.x;
+    const from = new Date(xScale.getValueForPixel(Math.min(startX, curX))).toISOString();
+    const to = new Date(xScale.getValueForPixel(Math.max(startX, curX))).toISOString();
+    setZoomRange({ from, to });
+  }
+
+  function handleResetZoom() {
+    setZoomRange(null);
+  }
 
   const fieldLabel = useCallback(
     (field: string) => {
@@ -881,24 +1010,33 @@ function GroupChart({
     [renames]
   );
 
-  const datasets = fields.map((field, i) => {
-    const fieldData = readings.filter((r) => r.field_name === field);
-    const label = fieldLabel(field);
-    const color = COLORS[i % COLORS.length];
+  const datasets = useMemo(() => {
+    const filtered = zoomRange
+      ? readings.filter((r) => {
+          const t = new Date(r.bucket).getTime();
+          return t >= new Date(zoomRange.from).getTime() && t <= new Date(zoomRange.to).getTime();
+        })
+      : readings;
 
-    return {
-      label: label.displayName,
-      data: fieldData.map((r) => ({
-        x: new Date(r.bucket),
-        y: r.value,
-      })),
-      borderColor: color,
-      backgroundColor: color + '20',
-      tension: 0.3,
-      pointRadius: 0,
-      borderWidth: 2,
-    };
-  });
+    return fields.map((field, i) => {
+      const fieldData = filtered.filter((r) => r.field_name === field);
+      const label = fieldLabel(field);
+      const color = COLORS[i % COLORS.length];
+
+      return {
+        label: label.displayName,
+        data: fieldData.map((r) => ({
+          x: new Date(r.bucket),
+          y: r.value,
+        })),
+        borderColor: color,
+        backgroundColor: color + '20',
+        tension: 0.3,
+        pointRadius: 0,
+        borderWidth: 2,
+      };
+    });
+  }, [fields, readings, zoomRange, fieldLabel]);
 
   const primaryUnit = fields.reduce((unit, field) => {
     if (unit) return unit;
@@ -908,97 +1046,133 @@ function GroupChart({
   return (
     <div className="field-chart-card">
       <div className="field-chart-header">
-        <span className="field-chart-title">{groupName}</span>
+        <div className="field-chart-header-left">
+          <span className="field-chart-title">{groupName}</span>
+        </div>
+        {zoomRange && (
+          <div className="field-chart-header-right">
+            <span className="zoom-indicator">
+              {new Date(zoomRange.from).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
+              {' — '}
+              {new Date(zoomRange.to).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
+            </span>
+            <button className="secondary" onClick={handleResetZoom} style={{ padding: '4px 10px', fontSize: '12px' }}>
+              ← Reset
+            </button>
+          </div>
+        )}
       </div>
-      <div className="field-chart-body">
-        {datasets.every((d) => d.data.length === 0) ? (
-          <p className="chart-empty">No data</p>
-        ) : (
-          <Line
-            data={{ datasets }}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              animation: false,
-              scales: {
-                x: {
-                  type: 'time',
-                  time: {
-                    tooltipFormat: 'PPpp',
-                    displayFormats: {
-                      hour: 'HH:mm',
-                      day: 'MMM d',
-                    },
-                  },
-                  grid: { color: 'rgba(255,255,255,0.05)' },
-                  ticks: {
-                    color: '#94a3b8',
-                    maxTicksLimit: isMobile ? 4 : 8,
-                    maxRotation: isMobile ? 45 : 0,
-                    autoSkip: false,
-                    font: { size: isMobile ? 10 : 12 },
-                  },
-                  title: {
-                    display: true,
-                    text: 'Time',
-                    color: '#94a3b8',
-                    font: { size: isMobile ? 10 : 12 },
+      <div
+        ref={containerRef}
+        className="field-chart-body"
+        style={{ position: 'relative', cursor: dragState?.active ? 'crosshair' : 'default' }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={() => { if (dragState?.active) handleMouseUp(); }}
+        onDoubleClick={handleResetZoom}
+      >
+        <Line
+          ref={chartRef}
+          data={{ datasets }}
+          options={{
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            scales: {
+              x: {
+                type: 'time',
+                time: {
+                  tooltipFormat: 'PPpp',
+                  displayFormats: {
+                    hour: 'HH:mm',
+                    day: 'MMM d',
                   },
                 },
-                y: {
-                  grid: { color: 'rgba(255,255,255,0.05)' },
-                  ticks: {
-                    color: '#94a3b8',
-                    maxTicksLimit: isMobile ? 4 : 8,
-                    font: { size: isMobile ? 10 : 12 },
-                  },
-                  title: primaryUnit
-                    ? {
-                        display: true,
-                        text: primaryUnit,
-                        color: '#94a3b8',
-                        font: { size: isMobile ? 10 : 12 },
-                      }
-                    : undefined,
+                grid: { color: 'rgba(255,255,255,0.05)' },
+                ticks: {
+                  color: '#94a3b8',
+                  maxTicksLimit: isMobile ? 4 : 8,
+                  maxRotation: isMobile ? 45 : 0,
+                  autoSkip: false,
+                  font: { size: isMobile ? 10 : 12 },
                 },
-              },
-              plugins: {
-                legend: {
+                title: {
                   display: true,
-                  position: 'top',
-                  labels: {
-                    color: '#94a3b8',
-                    font: { size: isMobile ? 11 : 12 },
-                    boxWidth: 7,
-                    boxHeight: 7,
-                    padding: 8,
-                    usePointStyle: false,
-                  },
+                  text: 'Time',
+                  color: '#94a3b8',
+                  font: { size: isMobile ? 10 : 12 },
                 },
-                tooltip: {
-                  callbacks: {
-                    label: function (context) {
-                      let label = context.dataset.label || '';
-                      if (label) label += ': ';
-                      const val = context.parsed.y;
-                      if (val !== null) {
-                        label += val.toFixed(1);
-                        const dsIndex = context.datasetIndex;
-                        if (dsIndex !== undefined && dsIndex < fields.length) {
-                          const unit = fieldLabel(fields[dsIndex]).unit;
-                          if (unit) label += ' ' + unit;
-                        }
+              },
+              y: {
+                grid: { color: 'rgba(255,255,255,0.05)' },
+                ticks: {
+                  color: '#94a3b8',
+                  maxTicksLimit: isMobile ? 4 : 8,
+                  font: { size: isMobile ? 10 : 12 },
+                },
+                title: primaryUnit
+                  ? {
+                      display: true,
+                      text: primaryUnit,
+                      color: '#94a3b8',
+                      font: { size: isMobile ? 10 : 12 },
+                    }
+                  : undefined,
+              },
+            },
+            plugins: {
+              legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                  color: '#94a3b8',
+                  font: { size: isMobile ? 11 : 12 },
+                  boxWidth: 7,
+                  boxHeight: 7,
+                  padding: 8,
+                  usePointStyle: false,
+                },
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    let label = context.dataset.label || '';
+                    if (label) label += ': ';
+                    const val = context.parsed.y;
+                    if (val !== null) {
+                      label += val.toFixed(1);
+                      const dsIndex = context.datasetIndex;
+                      if (dsIndex !== undefined && dsIndex < fields.length) {
+                        const unit = fieldLabel(fields[dsIndex]).unit;
+                        if (unit) label += ' ' + unit;
                       }
-                      return label;
-                    },
+                    }
+                    return label;
                   },
                 },
               },
-              interaction: {
-                mode: 'nearest',
-                axis: 'x',
-                intersect: false,
-              },
+            },
+            interaction: {
+              mode: 'nearest',
+              axis: 'x',
+              intersect: false,
+            },
+          }}
+        />
+        {dragState?.active && (
+          <div
+            style={{
+              position: 'absolute',
+              left: Math.min(dragState.startX, dragState.curX),
+              width: Math.abs(dragState.curX - dragState.startX),
+              top: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(59,130,246,0.15)',
+              borderLeft: '1px solid rgba(59,130,246,0.5)',
+              borderRight: '1px solid rgba(59,130,246,0.5)',
+              pointerEvents: 'none',
+              zIndex: 10,
             }}
           />
         )}

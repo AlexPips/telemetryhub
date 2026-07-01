@@ -16,8 +16,6 @@ export interface ReadingData {
   display_name: string;
   unit: string;
   value: number;
-  min: number;
-  max: number;
 }
 
 export interface FieldRename {
