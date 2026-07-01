@@ -75,6 +75,7 @@ export default function DeviceDetailPage() {
   const [readings, setReadings] = useState<ReadingData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const autoSelected = useRef(false);
+  const [resetAllCounter, setResetAllCounter] = useState(0);
   const selectedFields = useMemo(() => {
     if (!fieldsHydrated) return [];
     return storedFields.filter((f) => fields.includes(f));
@@ -414,6 +415,15 @@ export default function DeviceDetailPage() {
             </span>
           </div>
         )}
+        <div style={{ marginLeft: 'auto', marginTop: '20px' }}>
+          <button
+            className="secondary"
+            onClick={() => setResetAllCounter((c) => c + 1)}
+            style={{ fontSize: '13px' }}
+          >
+            Reset All
+          </button>
+        </div>
       </div>
 
       {selectedFields.length === 0 ? (
@@ -437,6 +447,7 @@ export default function DeviceDetailPage() {
               fields={group.fields}
               readings={readings}
               renames={renames}
+              resetTrigger={resetAllCounter}
             />
           ))}
           {chartGroups.ungrouped.map((field, i) => (
@@ -447,6 +458,7 @@ export default function DeviceDetailPage() {
               readings={readings}
               displayName={getDisplayName(field)}
               unit={getUnit(field)}
+              resetTrigger={resetAllCounter}
             />
           ))}
         </div>
@@ -743,15 +755,21 @@ function FieldChart({
   readings,
   displayName,
   unit,
+  resetTrigger,
 }: {
   field: string;
   index: number;
   readings: ReadingData[];
   displayName: string;
   unit: string;
+  resetTrigger?: number;
 }) {
   const allFieldData = useMemo(() => readings.filter((r) => r.field_name === field), [readings, field]);
   const [zoomRange, setZoomRange] = useState<{ from: string; to: string } | null>(null);
+
+  useEffect(() => {
+    setZoomRange(null);
+  }, [resetTrigger]);
   const color = COLORS[index % COLORS.length];
   const isMobile = useIsMobile();
   const chartRef = useRef<any>(null);
@@ -949,16 +967,22 @@ function GroupChart({
   fields,
   readings,
   renames,
+  resetTrigger,
 }: {
   groupName: string;
   fields: string[];
   readings: ReadingData[];
   renames: FieldRename[];
+  resetTrigger?: number;
 }) {
   const isMobile = useIsMobile();
   const chartRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [zoomRange, setZoomRange] = useState<{ from: string; to: string } | null>(null);
+
+  useEffect(() => {
+    setZoomRange(null);
+  }, [resetTrigger]);
   const [dragState, setDragState] = useState<{
     active: boolean;
     startX: number;
