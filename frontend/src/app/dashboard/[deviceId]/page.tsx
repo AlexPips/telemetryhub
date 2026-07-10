@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo, Fragment } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
@@ -93,29 +93,51 @@ export default function DeviceDetailPage() {
   const chartGroups = useMemo(() => {
     if (!fieldsHydrated) return { groups: [], ungrouped: [] };
     const fieldGroupMap = new Map<string, string>();
+    const fieldSubGroupMap = new Map<string, string>();
     for (const r of renames) {
       if (r.chart_group?.trim()) {
         fieldGroupMap.set(r.raw_field, r.chart_group.trim());
       }
+      if (r.sub_group?.trim()) {
+        fieldSubGroupMap.set(r.raw_field, r.sub_group.trim());
+      }
     }
-    const groupMap = new Map<string, string[]>();
+    const chartGroupMap = new Map<string, string[]>();
     const ungrouped: string[] = [];
     for (const field of selectedFields) {
       const group = fieldGroupMap.get(field);
       if (group) {
-        const existing = groupMap.get(group);
+        const existing = chartGroupMap.get(group);
         if (existing) {
           existing.push(field);
         } else {
-          groupMap.set(group, [field]);
+          chartGroupMap.set(group, [field]);
         }
       } else {
         ungrouped.push(field);
       }
     }
-    const groups = Array.from(groupMap.entries()).map(
-      ([groupName, fields]) => ({ groupName, fields })
-    );
+    const groups = Array.from(chartGroupMap.entries()).map(([groupName, fields]) => {
+      const subGroupFields = new Map<string, string[]>();
+      const soloFields: string[] = [];
+      for (const field of fields) {
+        const sg = fieldSubGroupMap.get(field);
+        if (sg) {
+          const existing = subGroupFields.get(sg);
+          if (existing) {
+            existing.push(field);
+          } else {
+            subGroupFields.set(sg, [field]);
+          }
+        } else {
+          soloFields.push(field);
+        }
+      }
+      const subGroups = Array.from(subGroupFields.entries())
+        .map(([subGroupName, flds]) => ({ subGroupName, fields: flds }))
+        .sort((a, b) => a.subGroupName.localeCompare(b.subGroupName));
+      return { groupName, subGroups, soloFields };
+    });
     return { groups, ungrouped };
   }, [selectedFields, renames, fieldsHydrated]);
 
@@ -244,12 +266,16 @@ export default function DeviceDetailPage() {
   };
 
   const labelForField = useCallback(
-    (field: string): FieldLabel => ({
-      field,
-      displayName: renames.find((r) => r.raw_field === field)?.display_name,
-      unit: renames.find((r) => r.raw_field === field)?.unit,
-      chartGroup: renames.find((r) => r.raw_field === field)?.chart_group,
-    }),
+    (field: string): FieldLabel => {
+      const rename = renames.find((r) => r.raw_field === field);
+      return {
+        field,
+        displayName: rename?.display_name,
+        unit: rename?.unit,
+        chartGroup: rename?.chart_group,
+        subGroup: rename?.sub_group,
+      };
+    },
     [renames]
   );
 
@@ -358,14 +384,29 @@ export default function DeviceDetailPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {chartGroups.groups.map((group) => (
-            <GroupChart
-              key={group.groupName}
-              groupName={group.groupName}
-              fields={group.fields}
-              readings={readings}
-              renames={renames}
-              resetTrigger={resetAllCounter}
-            />
+            <Fragment key={group.groupName}>
+              {group.subGroups.map((sg) => (
+                <GroupChart
+                  key={`${group.groupName}::${sg.subGroupName}`}
+                  groupName={`${group.groupName} – ${sg.subGroupName}`}
+                  fields={sg.fields}
+                  readings={readings}
+                  renames={renames}
+                  resetTrigger={resetAllCounter}
+                />
+              ))}
+              {group.soloFields.map((field) => (
+                <FieldChart
+                  key={field}
+                  field={field}
+                  index={selectedFields.indexOf(field)}
+                  readings={readings}
+                  displayName={`${group.groupName} – ${getDisplayName(field)}`}
+                  unit={getUnit(field)}
+                  resetTrigger={resetAllCounter}
+                />
+              ))}
+            </Fragment>
           ))}
           {chartGroups.ungrouped.map((field, i) => (
             <FieldChart

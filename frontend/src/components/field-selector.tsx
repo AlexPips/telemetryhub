@@ -14,6 +14,7 @@ export type FieldLabel = {
   displayName?: string;
   unit?: string;
   chartGroup?: string;
+  subGroup?: string;
 };
 
 export type FieldSelectorProps = {
