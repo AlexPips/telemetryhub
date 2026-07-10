@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Drawer } from 'vaul';
+import { Button } from '@/components/ui/button';
 
 const COLORS = [
   '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6',
@@ -21,6 +22,18 @@ export type FieldSelectorProps = {
   onChange: (next: string[]) => void;
   labelFor?: (field: string) => FieldLabel;
 };
+
+const popoverClasses =
+  'absolute top-full left-0 w-[min(85vw,720px)] max-h-[75vh] bg-popover border border-border rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.4)] z-50 flex flex-col overflow-hidden max-md:!hidden';
+const searchClasses =
+  'w-full bg-background text-foreground border border-input rounded-md px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring';
+const actionBtnClasses =
+  'bg-transparent text-primary px-1 py-0.5 text-xs font-medium rounded hover:bg-secondary hover:underline';
+const optClasses =
+  'flex items-center gap-2.5 px-3.5 py-[7px] cursor-pointer text-xs transition-colors duration-100 w-full min-w-0 box-border hover:bg-accent';
+const optCheckedClasses = ' bg-primary/10';
+const groupHeaderClasses =
+  'flex items-center gap-1.5 w-full px-3.5 py-1.5 bg-muted text-foreground text-xs font-semibold uppercase tracking-[0.5px] border-none border-t border-border cursor-pointer col-span-full hover:bg-secondary';
 
 export function FieldSelector({ fields, selected, onChange, labelFor }: FieldSelectorProps) {
   const [open, setOpen] = useState(false);
@@ -143,16 +156,17 @@ export function FieldSelector({ fields, selected, onChange, labelFor }: FieldSel
       return (
         <label
           key={f}
-          className={'field-selector-option' + (checked ? ' checked' : '')}
+          className={optClasses + (checked ? optCheckedClasses : '')}
         >
           <input
             type="checkbox"
             checked={checked}
             onChange={() => toggle(f)}
+            className="m-0 cursor-pointer accent-primary"
           />
-          <span className="field-selector-option-dot" style={{ background: color }} />
-          <span className="field-selector-option-name">{labelOf(f)}</span>
-          <span className="field-selector-option-raw">{f}</span>
+          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+          <span className="text-foreground font-semibold text-xs truncate min-w-0">{labelOf(f)}</span>
+          <span className="text-muted-foreground text-[11px] font-mono ml-auto truncate max-w-[80px] min-w-0">{f}</span>
         </label>
       );
     },
@@ -178,7 +192,7 @@ export function FieldSelector({ fields, selected, onChange, labelFor }: FieldSel
 
   function renderFieldList() {
     if (filteredFields.length === 0) {
-      return <div className="field-selector-empty">No fields match "{search}"</div>;
+      return <div className="p-6 text-center text-muted-foreground text-xs col-span-full">No fields match &quot;{search}&quot;</div>;
     }
     if (search.trim()) {
       return filteredFields.map((f, i) => renderFieldOption(f, i));
@@ -191,14 +205,14 @@ export function FieldSelector({ fields, selected, onChange, labelFor }: FieldSel
             <Fragment key={group.groupName}>
               <button
                 type="button"
-                className="field-selector-group-header"
+                className={groupHeaderClasses}
                 onClick={() => handleGroupHeaderClick(group.groupName, group.fields)}
               >
-                <span className="field-selector-group-chevron">
+                <span className="text-[8px] text-muted-foreground">
                   {collapsed ? '▸' : '▾'}
                 </span>
-                <span className="field-selector-group-name">{group.groupName}</span>
-                <span className="field-selector-group-count">{group.fields.length}</span>
+                <span className="flex-1 text-left">{group.groupName}</span>
+                <span className="text-[11px] text-muted-foreground">{group.fields.length}</span>
               </button>
               {!collapsed && group.fields.map((f) => renderFieldOption(f, fields.indexOf(f)))}
             </Fragment>
@@ -206,10 +220,10 @@ export function FieldSelector({ fields, selected, onChange, labelFor }: FieldSel
         })}
         {groupedFields.uncategorized.length > 0 && (
           <Fragment>
-            <div className="field-selector-group-header field-selector-group-other">
-              <span className="field-selector-group-chevron">▾</span>
-              <span className="field-selector-group-name">Other</span>
-              <span className="field-selector-group-count">{groupedFields.uncategorized.length}</span>
+            <div className={`${groupHeaderClasses} opacity-60 cursor-default`}>
+              <span className="text-[8px] text-muted-foreground">▾</span>
+              <span className="flex-1 text-left">Other</span>
+              <span className="text-[11px] text-muted-foreground">{groupedFields.uncategorized.length}</span>
             </div>
             {groupedFields.uncategorized.map((f) => renderFieldOption(f, fields.indexOf(f)))}
           </Fragment>
@@ -219,25 +233,23 @@ export function FieldSelector({ fields, selected, onChange, labelFor }: FieldSel
   }
 
   return (
-    <div className="field-selector">
-      <button
-        ref={triggerRef}
-        type="button"
-        className="field-selector-trigger"
+    <div className="relative inline-block">
+      <Button
+        variant="outline"
         onClick={handleTriggerClick}
         aria-expanded={open || drawerOpen}
+        className="min-w-[140px] justify-between font-medium"
       >
-        <span>Fields</span>
-        <span className="field-selector-count">{count}/{total}</span>
-        <span className="field-selector-chevron">{open || drawerOpen ? '▲' : '▼'}</span>
-      </button>
+        <span className="text-foreground">Fields</span>
+        <span className="text-xs font-semibold bg-primary text-primary-foreground px-[7px] py-[1px] rounded-full ml-1 leading-[1.5]">{count}/{total}</span>
+      </Button>
 
       {open && (
-        <div ref={popoverRef} className="field-selector-popover" role="dialog" aria-label="Select fields">
-          <div className="field-selector-search-row">
+        <div ref={popoverRef} className={popoverClasses} role="dialog" aria-label="Select fields">
+          <div className="px-3 pt-3 pb-2 border-b border-border">
             <input
               type="text"
-              className="field-selector-search"
+              className={searchClasses}
               placeholder="Search fields…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -245,15 +257,15 @@ export function FieldSelector({ fields, selected, onChange, labelFor }: FieldSel
             />
           </div>
 
-          <div className="field-selector-actions">
-            <button type="button" className="field-selector-link" onClick={selectAll}>All</button>
-            <span className="field-selector-sep">·</span>
-            <button type="button" className="field-selector-link" onClick={clearAll}>None</button>
-            <span className="field-selector-sep">·</span>
-            <button type="button" className="field-selector-link" onClick={selectCommon}>Common</button>
+          <div className="flex items-center gap-2 px-3.5 py-2 text-xs border-b border-border bg-muted">
+            <button type="button" className={actionBtnClasses} onClick={selectAll}>All</button>
+            <span className="text-border text-xs">·</span>
+            <button type="button" className={actionBtnClasses} onClick={clearAll}>None</button>
+            <span className="text-border text-xs">·</span>
+            <button type="button" className={actionBtnClasses} onClick={selectCommon}>Common</button>
           </div>
 
-          <div className="field-selector-list">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-1 pb-2 grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] content-start">
             {renderFieldList()}
           </div>
         </div>
@@ -261,19 +273,19 @@ export function FieldSelector({ fields, selected, onChange, labelFor }: FieldSel
 
       <Drawer.Root open={drawerOpen} onOpenChange={setDrawerOpen}>
         <Drawer.Portal>
-          <Drawer.Overlay className="field-drawer-overlay" />
-          <Drawer.Content className="field-drawer-content">
+          <Drawer.Overlay className="bg-black/60 fixed inset-0 z-[80] md:hidden" />
+          <Drawer.Content className="bg-card rounded-t-2xl fixed bottom-0 left-0 right-0 max-h-[85vh] z-[90] flex flex-col pb-[env(safe-area-inset-bottom,16px)] md:hidden">
             <Drawer.Handle />
-            <div className="field-drawer-header">
+            <div className="px-5 pt-4 pb-2 text-center">
               <Drawer.Title asChild>
-                <h3>Select Fields</h3>
+                <h3 className="text-lg font-semibold text-foreground">Select Fields</h3>
               </Drawer.Title>
             </div>
 
-            <div className="field-drawer-search-row">
+            <div className="px-4 py-2">
               <input
                 type="text"
-                className="field-selector-search"
+                className={searchClasses}
                 placeholder="Search fields…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -281,26 +293,25 @@ export function FieldSelector({ fields, selected, onChange, labelFor }: FieldSel
               />
             </div>
 
-            <div className="field-selector-actions">
-              <button type="button" className="field-selector-link" onClick={selectAll}>All</button>
-              <span className="field-selector-sep">·</span>
-              <button type="button" className="field-selector-link" onClick={clearAll}>None</button>
-              <span className="field-selector-sep">·</span>
-              <button type="button" className="field-selector-link" onClick={selectCommon}>Common</button>
+            <div className="flex items-center gap-2 px-3.5 py-2 text-xs border-b border-border bg-muted">
+              <button type="button" className={actionBtnClasses} onClick={selectAll}>All</button>
+              <span className="text-border text-xs">·</span>
+              <button type="button" className={actionBtnClasses} onClick={clearAll}>None</button>
+              <span className="text-border text-xs">·</span>
+              <button type="button" className={actionBtnClasses} onClick={selectCommon}>Common</button>
             </div>
 
-            <div className="field-drawer-list">
+            <div className="flex-1 overflow-y-auto py-1 pb-2">
               {renderFieldList()}
             </div>
 
-            <div className="field-drawer-footer">
-              <button
-                className="primary"
-                style={{ width: '100%', minHeight: '48px' }}
+            <div className="px-4 pb-4 pt-2 border-t border-border">
+              <Button
+                className="w-full h-12"
                 onClick={closeDrawer}
               >
                 Done ({count} selected)
-              </button>
+              </Button>
             </div>
           </Drawer.Content>
         </Drawer.Portal>

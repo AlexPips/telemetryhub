@@ -24,6 +24,7 @@ export interface FieldRename {
   display_name?: string;
   unit?: string;
   chart_group?: string;
+  sub_group?: string;
 }
 
 export interface User {
@@ -120,6 +121,22 @@ export async function updateDevice(deviceId: string, data: { name?: string; devi
   if (!res.ok) throw new Error('Failed to update device');
 }
 
+export async function deleteDevice(deviceId: string): Promise<void> {
+  const res = await fetch(`${API_URL}/devices/${deviceId}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to delete device');
+}
+
+export async function deleteDeviceField(deviceId: string, fieldName: string): Promise<void> {
+  const res = await fetch(`${API_URL}/devices/${deviceId}/fields/${encodeURIComponent(fieldName)}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to delete field data');
+}
+
 export async function getRenames(deviceId: string): Promise<FieldRename[]>{
   const res = await fetch(`${API_URL}/devices/${deviceId}/renames`, { headers: getHeaders() });
   if (!res.ok) throw new Error('Failed to fetch renames');
@@ -131,12 +148,13 @@ export async function createRename(
   rawField: string,
   displayName?: string,
   unit?: string,
-  chartGroup?: string
+  chartGroup?: string,
+  subGroup?: string
 ): Promise<void> {
   const res = await fetch(`${API_URL}/devices/${deviceId}/renames`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ raw_field: rawField, display_name: displayName, unit, chart_group: chartGroup }),
+    body: JSON.stringify({ raw_field: rawField, display_name: displayName, unit, chart_group: chartGroup, sub_group: subGroup }),
   });
   if (!res.ok) throw new Error('Failed to create rename');
 }
@@ -146,12 +164,13 @@ export async function updateRename(
   rawField: string,
   displayName?: string,
   unit?: string,
-  chartGroup?: string
+  chartGroup?: string,
+  subGroup?: string
 ): Promise<void> {
   const res = await fetch(`${API_URL}/devices/${deviceId}/renames/${encodeURIComponent(rawField)}`, {
     method: 'PUT',
     headers: getHeaders(),
-    body: JSON.stringify({ display_name: displayName, unit, chart_group: chartGroup }),
+    body: JSON.stringify({ display_name: displayName, unit, chart_group: chartGroup, sub_group: subGroup }),
   });
   if (!res.ok) throw new Error('Failed to update rename');
 }

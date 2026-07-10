@@ -36,6 +36,7 @@ type FieldRename struct {
 	DisplayName *string `json:"display_name,omitempty"`
 	Unit        *string `json:"unit,omitempty"`
 	ChartGroup  *string `json:"chart_group,omitempty"`
+	SubGroup    *string `json:"sub_group,omitempty"`
 }
 
 // DeviceStore defines the interface for device operations.
@@ -44,10 +45,11 @@ type DeviceStore interface {
 	GetDeviceFields(ctx context.Context, deviceID string) ([]string, error)
 	UpdateDevice(ctx context.Context, deviceID, name, deviceType string) error
 	DeleteDevice(ctx context.Context, deviceID string) error
+	DeleteDeviceField(ctx context.Context, deviceID, fieldName string) error
 	GetReadings(ctx context.Context, deviceID string, fields []string, from, to time.Time) ([]ReadingResult, error)
 	ListRenames(ctx context.Context, deviceID string) ([]FieldRename, error)
-	CreateRename(ctx context.Context, deviceID, rawField string, displayName, unit, chartGroup *string) error
-	UpdateRename(ctx context.Context, deviceID, rawField string, displayName, unit, chartGroup *string) error
+	CreateRename(ctx context.Context, deviceID, rawField string, displayName, unit, chartGroup, subGroup *string) error
+	UpdateRename(ctx context.Context, deviceID, rawField string, displayName, unit, chartGroup, subGroup *string) error
 	DeleteRename(ctx context.Context, deviceID, rawField string) error
 }
 
@@ -187,4 +189,26 @@ func (h *DeviceHandler) DeleteDevice(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete device"})
 	}
 	return c.JSON(http.StatusOK, map[string]string{"message": "Device deleted"})
+}
+
+// DeleteDeviceField  Delete specific sensor field from device (admin only)
+// @Summary      Delete device field
+// @Description  Deletes all readings and label config for a specific field on a device. Requires admin role.
+// @Tags         devices
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Device ID"
+// @Param        field path string true "Field Name"
+// @Success      200 {object} auth.MessageResponse
+// @Failure      401 {object} auth.ErrorResponse
+// @Failure      403 {object} auth.ErrorResponse
+// @Failure      500 {object} auth.ErrorResponse
+// @Router       /devices/{id}/fields/{field} [delete]
+func (h *DeviceHandler) DeleteDeviceField(c echo.Context) error {
+	deviceID := c.Param("id")
+	fieldName := c.Param("field")
+	if err := h.store.DeleteDeviceField(c.Request().Context(), deviceID, fieldName); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete field data"})
+	}
+	return c.JSON(http.StatusOK, map[string]string{"message": "Field data deleted"})
 }

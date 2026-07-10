@@ -11,7 +11,7 @@ docker-up:
 	docker compose up -d
 
 docker-down:
-	docker compose down
+	docker compose down -v
 
 # ─── Forwarding targets (delegate to backend/) ─────────────────────────────────
 

@@ -196,12 +196,7 @@ const docTemplate = `{
         },
         "/auth/register": {
             "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Creates a new platform user. Requires admin role. Passwords must be at least 8 characters.",
+                "description": "Creates a new viewer user. Passwords must be at least 8 characters.",
                 "consumes": [
                     "application/json"
                 ],
@@ -232,18 +227,6 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/internal_auth.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/internal_auth.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
@@ -545,6 +528,65 @@ const docTemplate = `{
                 }
             }
         },
+        "/devices/{id}/fields/{field}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes all readings and label config for a specific field on a device. Requires admin role.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "devices"
+                ],
+                "summary": "Delete device field",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Field Name",
+                        "name": "field",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/telemetryhub_internal_auth.MessageResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/telemetryhub_internal_auth.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/devices/{id}/readings": {
             "get": {
                 "security": [
@@ -552,7 +594,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns downsampled sensor readings for a device. Uses TimescaleDB time bucketing: 15-minute buckets for \u003c24h range, 1-hour for \u003c7d, 1-day for longer. Field renames are applied automatically.",
+                "description": "Returns raw sensor readings for a device. Field renames are applied automatically.",
                 "produces": [
                     "application/json"
                 ],
@@ -946,19 +988,20 @@ const docTemplate = `{
         "internal_auth.RegisterRequest": {
             "type": "object",
             "required": [
+                "confirm_password",
                 "email",
                 "password"
             ],
             "properties": {
+                "confirm_password": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
                 "password": {
                     "type": "string",
                     "minLength": 8
-                },
-                "role": {
-                    "type": "string"
                 }
             }
         },
@@ -1075,12 +1118,6 @@ const docTemplate = `{
                 },
                 "field_name": {
                     "type": "string"
-                },
-                "max": {
-                    "type": "number"
-                },
-                "min": {
-                    "type": "number"
                 },
                 "unit": {
                     "type": "string"
@@ -1216,7 +1253,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/api/v1",
 	Schemes:          []string{},
 	Title:            "TelemetryHub API",
-	Description:      "Real-time multi-broker MQTT sensor dashboard with JWT authentication. Provides device management, sensor readings with TimescaleDB downsampling, and field rename configuration.",
+	Description:      "Real-time multi-broker MQTT sensor dashboard with JWT authentication. Provides device management, sensor readings, and field rename configuration.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

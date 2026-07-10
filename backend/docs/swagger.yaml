@@ -36,14 +36,15 @@ definitions:
     type: object
   internal_auth.RegisterRequest:
     properties:
+      confirm_password:
+        type: string
       email:
         type: string
       password:
         minLength: 8
         type: string
-      role:
-        type: string
     required:
+    - confirm_password
     - email
     - password
     type: object
@@ -121,10 +122,6 @@ definitions:
         type: string
       field_name:
         type: string
-      max:
-        type: number
-      min:
-        type: number
       unit:
         type: string
       value:
@@ -205,8 +202,7 @@ info:
     email: admin@telemetryhub.local
     name: API Support
   description: Real-time multi-broker MQTT sensor dashboard with JWT authentication.
-    Provides device management, sensor readings with TimescaleDB downsampling, and
-    field rename configuration.
+    Provides device management, sensor readings, and field rename configuration.
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
@@ -331,8 +327,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Creates a new platform user. Requires admin role. Passwords must
-        be at least 8 characters.
+      description: Creates a new viewer user. Passwords must be at least 8 characters.
       parameters:
       - description: Registration details
         in: body
@@ -351,14 +346,6 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/internal_auth.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/internal_auth.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/internal_auth.ErrorResponse'
         "409":
           description: Conflict
           schema:
@@ -367,8 +354,6 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/internal_auth.ErrorResponse'
-      security:
-      - BearerAuth: []
       summary: Register a new user
       tags:
       - auth
@@ -555,11 +540,49 @@ paths:
       summary: Get device fields
       tags:
       - devices
+  /devices/{id}/fields/{field}:
+    delete:
+      description: Deletes all readings and label config for a specific field on a
+        device. Requires admin role.
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Field Name
+        in: path
+        name: field
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/telemetryhub_internal_auth.MessageResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/telemetryhub_internal_auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete device field
+      tags:
+      - devices
   /devices/{id}/readings:
     get:
-      description: 'Returns downsampled sensor readings for a device. Uses TimescaleDB
-        time bucketing: 15-minute buckets for <24h range, 1-hour for <7d, 1-day for
-        longer. Field renames are applied automatically.'
+      description: Returns raw sensor readings for a device. Field renames are applied
+        automatically.
       parameters:
       - description: Device ID
         in: path

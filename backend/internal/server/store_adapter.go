@@ -74,8 +74,43 @@ func (a *StoreAdapter) UpdateDevice(ctx context.Context, deviceID, name, deviceT
 }
 
 func (a *StoreAdapter) DeleteDevice(ctx context.Context, deviceID string) error {
-	_, err := a.pool.Exec(ctx, `DELETE FROM devices WHERE id = $1`, deviceID)
-	return err
+	tx, err := a.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `DELETE FROM raw_payloads WHERE device_id = $1`, deviceID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM readings WHERE device_id = $1`, deviceID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM field_renames WHERE device_id = $1`, deviceID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM devices WHERE id = $1`, deviceID); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (a *StoreAdapter) DeleteDeviceField(ctx context.Context, deviceID, fieldName string) error {
+	tx, err := a.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `DELETE FROM readings WHERE device_id = $1 AND field_name = $2`, deviceID, fieldName); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM field_renames WHERE device_id = $1 AND raw_field = $2`, deviceID, fieldName); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (a *StoreAdapter) GetReadings(ctx context.Context, deviceID string, fields []string, from, to time.Time) ([]handlers.ReadingResult, error) {
@@ -108,7 +143,7 @@ func (a *StoreAdapter) GetReadings(ctx context.Context, deviceID string, fields 
 
 func (a *StoreAdapter) ListRenames(ctx context.Context, deviceID string) ([]handlers.FieldRename, error) {
 	rows, err := a.pool.Query(ctx, `
-		SELECT device_id, raw_field, display_name, unit, chart_group
+		SELECT device_id, raw_field, display_name, unit, chart_group, sub_group
 		FROM field_renames WHERE device_id = $1
 	`, deviceID)
 	if err != nil {
@@ -119,7 +154,7 @@ func (a *StoreAdapter) ListRenames(ctx context.Context, deviceID string) ([]hand
 	var renames []handlers.FieldRename
 	for rows.Next() {
 		var r handlers.FieldRename
-		if err := rows.Scan(&r.DeviceID, &r.RawField, &r.DisplayName, &r.Unit, &r.ChartGroup); err != nil {
+		if err := rows.Scan(&r.DeviceID, &r.RawField, &r.DisplayName, &r.Unit, &r.ChartGroup, &r.SubGroup); err != nil {
 			return nil, err
 		}
 		renames = append(renames, r)
@@ -127,21 +162,21 @@ func (a *StoreAdapter) ListRenames(ctx context.Context, deviceID string) ([]hand
 	return renames, rows.Err()
 }
 
-func (a *StoreAdapter) CreateRename(ctx context.Context, deviceID, rawField string, displayName, unit, chartGroup *string) error {
+func (a *StoreAdapter) CreateRename(ctx context.Context, deviceID, rawField string, displayName, unit, chartGroup, subGroup *string) error {
 	_, err := a.pool.Exec(ctx, `
-		INSERT INTO field_renames (device_id, raw_field, display_name, unit, chart_group)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO field_renames (device_id, raw_field, display_name, unit, chart_group, sub_group)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (device_id, raw_field) DO UPDATE
-		SET display_name = EXCLUDED.display_name, unit = EXCLUDED.unit, chart_group = EXCLUDED.chart_group
-	`, deviceID, rawField, displayName, unit, chartGroup)
+		SET display_name = EXCLUDED.display_name, unit = EXCLUDED.unit, chart_group = EXCLUDED.chart_group, sub_group = EXCLUDED.sub_group
+	`, deviceID, rawField, displayName, unit, chartGroup, subGroup)
 	return err
 }
 
-func (a *StoreAdapter) UpdateRename(ctx context.Context, deviceID, rawField string, displayName, unit, chartGroup *string) error {
+func (a *StoreAdapter) UpdateRename(ctx context.Context, deviceID, rawField string, displayName, unit, chartGroup, subGroup *string) error {
 	_, err := a.pool.Exec(ctx, `
-		UPDATE field_renames SET display_name = $3, unit = $4, chart_group = $5
+		UPDATE field_renames SET display_name = $3, unit = $4, chart_group = $5, sub_group = $6
 		WHERE device_id = $1 AND raw_field = $2
-	`, deviceID, rawField, displayName, unit, chartGroup)
+	`, deviceID, rawField, displayName, unit, chartGroup, subGroup)
 	return err
 }
 

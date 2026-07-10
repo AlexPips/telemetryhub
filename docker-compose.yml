@@ -18,13 +18,13 @@ services:
       retries: 5
     restart: unless-stopped
 
-  mosquitto:
-    image: eclipse-mosquitto:2.0
-    ports:
-      - "1883:1883"
-    volumes:
-      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
-    restart: unless-stopped
+  # mosquitto:
+  #   image: eclipse-mosquitto:2.0
+  #   ports:
+  #     - "1883:1883"
+  #   volumes:
+  #     - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+  #   restart: unless-stopped
 
   api-server:
     build:
@@ -35,8 +35,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      mosquitto:
-        condition: service_started
+      # mosquitto:
+      #   condition: service_started
     environment:
       - DATABASE_URL=postgres://telemetryhub:password@db:5432/telemetryhub?sslmode=disable
       - JWT_SECRET=${JWT_SECRET:-supersecretjwtkeytelemetryhub2026longenough}
