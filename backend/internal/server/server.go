@@ -105,7 +105,8 @@ func (s *Server) setupRoutes() {
 	adminGroup := authGroup.Group("", ocmw.RequireRole("admin"))
 	adminGroup.PUT("/devices/:id", s.devH.UpdateDevice)
 	adminGroup.DELETE("/devices/:id", s.devH.DeleteDevice)
-
+	adminGroup.DELETE("/devices/:id/fields/:field", s.devH.DeleteDeviceField)
+	
 	// Field rename endpoints
 	adminGroup.POST("/devices/:id/renames", s.renameH.CreateRename)
 	adminGroup.GET("/devices/:id/renames", s.renameH.ListRenames)

@@ -74,34 +74,57 @@ func (a *StoreAdapter) UpdateDevice(ctx context.Context, deviceID, name, deviceT
 }
 
 func (a *StoreAdapter) DeleteDevice(ctx context.Context, deviceID string) error {
-	_, err := a.pool.Exec(ctx, `DELETE FROM devices WHERE id = $1`, deviceID)
-	return err
+	tx, err := a.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `DELETE FROM raw_payloads WHERE device_id = $1`, deviceID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM readings WHERE device_id = $1`, deviceID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM field_renames WHERE device_id = $1`, deviceID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM devices WHERE id = $1`, deviceID); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (a *StoreAdapter) DeleteDeviceField(ctx context.Context, deviceID, fieldName string) error {
+	tx, err := a.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `DELETE FROM readings WHERE device_id = $1 AND field_name = $2`, deviceID, fieldName); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM field_renames WHERE device_id = $1 AND raw_field = $2`, deviceID, fieldName); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (a *StoreAdapter) GetReadings(ctx context.Context, deviceID string, fields []string, from, to time.Time) ([]handlers.ReadingResult, error) {
-	timeRange := to.Sub(from)
-	var bucket string
-	switch {
-	case timeRange < 24*time.Hour:
-		bucket = "15 minutes"
-	case timeRange < 7*24*time.Hour:
-		bucket = "1 hour"
-	default:
-		bucket = "1 day"
-	}
-
 	rows, err := a.pool.Query(ctx, `
-		SELECT time_bucket($1, ts) as bucket, r.field_name,
-		       AVG(r.value) as value, MIN(r.value) as min, MAX(r.value) as max,
+		SELECT r.ts as bucket, r.field_name,
+		       r.value as value,
 		       COALESCE(fr.display_name, r.field_name) as display_name,
 		       COALESCE(fr.unit, '') as unit
 		FROM readings r
 		LEFT JOIN field_renames fr ON fr.device_id = r.device_id AND fr.raw_field = r.field_name
-		WHERE r.device_id = $2 AND r.field_name = ANY($3)
-		  AND r.ts > $4 AND r.ts < $5
-		GROUP BY bucket, r.field_name, fr.display_name, fr.unit
-		ORDER BY bucket
-	`, bucket, deviceID, fields, from, to)
+		WHERE r.device_id = $1 AND r.field_name = ANY($2)
+		  AND r.ts > $3 AND r.ts < $4
+		ORDER BY r.ts
+	`, deviceID, fields, from, to)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +133,7 @@ func (a *StoreAdapter) GetReadings(ctx context.Context, deviceID string, fields 
 	var results []handlers.ReadingResult
 	for rows.Next() {
 		var r handlers.ReadingResult
-		if err := rows.Scan(&r.Bucket, &r.FieldName, &r.Value, &r.Min, &r.Max, &r.DisplayName, &r.Unit); err != nil {
+		if err := rows.Scan(&r.Bucket, &r.FieldName, &r.Value, &r.DisplayName, &r.Unit); err != nil {
 			return nil, err
 		}
 		results = append(results, r)
@@ -120,7 +143,7 @@ func (a *StoreAdapter) GetReadings(ctx context.Context, deviceID string, fields 
 
 func (a *StoreAdapter) ListRenames(ctx context.Context, deviceID string) ([]handlers.FieldRename, error) {
 	rows, err := a.pool.Query(ctx, `
-		SELECT device_id, raw_field, display_name, unit, chart_group
+		SELECT device_id, raw_field, display_name, unit, chart_group, sub_group
 		FROM field_renames WHERE device_id = $1
 	`, deviceID)
 	if err != nil {
@@ -131,7 +154,7 @@ func (a *StoreAdapter) ListRenames(ctx context.Context, deviceID string) ([]hand
 	var renames []handlers.FieldRename
 	for rows.Next() {
 		var r handlers.FieldRename
-		if err := rows.Scan(&r.DeviceID, &r.RawField, &r.DisplayName, &r.Unit, &r.ChartGroup); err != nil {
+		if err := rows.Scan(&r.DeviceID, &r.RawField, &r.DisplayName, &r.Unit, &r.ChartGroup, &r.SubGroup); err != nil {
 			return nil, err
 		}
 		renames = append(renames, r)
@@ -139,21 +162,21 @@ func (a *StoreAdapter) ListRenames(ctx context.Context, deviceID string) ([]hand
 	return renames, rows.Err()
 }
 
-func (a *StoreAdapter) CreateRename(ctx context.Context, deviceID, rawField string, displayName, unit, chartGroup *string) error {
+func (a *StoreAdapter) CreateRename(ctx context.Context, deviceID, rawField string, displayName, unit, chartGroup, subGroup *string) error {
 	_, err := a.pool.Exec(ctx, `
-		INSERT INTO field_renames (device_id, raw_field, display_name, unit, chart_group)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO field_renames (device_id, raw_field, display_name, unit, chart_group, sub_group)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (device_id, raw_field) DO UPDATE
-		SET display_name = EXCLUDED.display_name, unit = EXCLUDED.unit, chart_group = EXCLUDED.chart_group
-	`, deviceID, rawField, displayName, unit, chartGroup)
+		SET display_name = EXCLUDED.display_name, unit = EXCLUDED.unit, chart_group = EXCLUDED.chart_group, sub_group = EXCLUDED.sub_group
+	`, deviceID, rawField, displayName, unit, chartGroup, subGroup)
 	return err
 }
 
-func (a *StoreAdapter) UpdateRename(ctx context.Context, deviceID, rawField string, displayName, unit, chartGroup *string) error {
+func (a *StoreAdapter) UpdateRename(ctx context.Context, deviceID, rawField string, displayName, unit, chartGroup, subGroup *string) error {
 	_, err := a.pool.Exec(ctx, `
-		UPDATE field_renames SET display_name = $3, unit = $4, chart_group = $5
+		UPDATE field_renames SET display_name = $3, unit = $4, chart_group = $5, sub_group = $6
 		WHERE device_id = $1 AND raw_field = $2
-	`, deviceID, rawField, displayName, unit, chartGroup)
+	`, deviceID, rawField, displayName, unit, chartGroup, subGroup)
 	return err
 }
 

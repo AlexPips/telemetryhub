@@ -13,6 +13,7 @@ type CreateRenameRequest struct {
 	DisplayName *string `json:"display_name"`
 	Unit        *string `json:"unit"`
 	ChartGroup  *string `json:"chart_group"`
+	SubGroup    *string `json:"sub_group"`
 }
 
 // UpdateRenameRequest represents an update rename request.
@@ -20,6 +21,7 @@ type UpdateRenameRequest struct {
 	DisplayName *string `json:"display_name"`
 	Unit        *string `json:"unit"`
 	ChartGroup  *string `json:"chart_group"`
+	SubGroup    *string `json:"sub_group"`
 }
 
 // RenameHandler handles field rename endpoints.
@@ -54,6 +56,7 @@ func (h *RenameHandler) CreateRename(c echo.Context) error {
 		DisplayName *string `json:"display_name"`
 		Unit        *string `json:"unit"`
 		ChartGroup  *string `json:"chart_group"`
+		SubGroup    *string `json:"sub_group"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
@@ -62,8 +65,8 @@ func (h *RenameHandler) CreateRename(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "raw_field is required"})
 	}
 
-	if err := h.store.CreateRename(c.Request().Context(), deviceID, req.RawField, req.DisplayName, req.Unit, req.ChartGroup); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create rename"})
+	if err := h.store.CreateRename(c.Request().Context(), deviceID, req.RawField, req.DisplayName, req.Unit, req.ChartGroup, req.SubGroup); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 	return c.JSON(http.StatusCreated, map[string]string{"message": "Rename created"})
 }
@@ -114,13 +117,14 @@ func (h *RenameHandler) UpdateRename(c echo.Context) error {
 		DisplayName *string `json:"display_name"`
 		Unit        *string `json:"unit"`
 		ChartGroup  *string `json:"chart_group"`
+		SubGroup    *string `json:"sub_group"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
 	}
 
-	if err := h.store.UpdateRename(c.Request().Context(), deviceID, rawField, req.DisplayName, req.Unit, req.ChartGroup); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update rename"})
+	if err := h.store.UpdateRename(c.Request().Context(), deviceID, rawField, req.DisplayName, req.Unit, req.ChartGroup, req.SubGroup); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 	return c.JSON(http.StatusOK, map[string]string{"message": "Rename updated"})
 }

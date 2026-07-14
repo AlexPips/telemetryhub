@@ -29,7 +29,7 @@ func NewReadingHandler(store DeviceStore) *ReadingHandler {
 
 // GetReadings     Get device readings
 // @Summary      Get readings
-// @Description  Returns downsampled sensor readings for a device. Uses TimescaleDB time bucketing: 15-minute buckets for <24h range, 1-hour for <7d, 1-day for longer. Field renames are applied automatically.
+// @Description  Returns raw sensor readings for a device. Field renames are applied automatically.
 // @Tags         readings
 // @Produce      json
 // @Security     BearerAuth

@@ -10,7 +10,7 @@ export default function NavbarWrapper({ children }: { children: React.ReactNode 
   return (
     <>
       {showNavbar && <Navbar />}
-      <main className={`page-content${showNavbar ? ' has-navbar' : ''}`}>
+      <main className={showNavbar ? 'min-h-[calc(100svh-56px)] overflow-x-hidden' : ''}>
         {children}
       </main>
     </>
