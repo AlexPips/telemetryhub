@@ -18,7 +18,7 @@ spec:
             - key: kubernetes.io/hostname
               operator: In
               values:
-                - dashboards2
+                - production
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
