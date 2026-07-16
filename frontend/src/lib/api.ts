@@ -25,6 +25,10 @@ export interface FieldRename {
   unit?: string;
   chart_group?: string;
   sub_group?: string;
+  group_description?: string;
+  sub_group_description?: string;
+  group_sort_order?: number;
+  sub_group_sort_order?: number;
 }
 
 export interface User {
@@ -181,4 +185,33 @@ export async function deleteRename(deviceId: string, rawField: string): Promise<
     headers: getHeaders(),
   });
   if (!res.ok) throw new Error('Failed to delete rename');
+}
+
+export async function updateGroupConfig(
+  deviceId: string,
+  chartGroup: string,
+  description?: string,
+  sortOrder?: number
+): Promise<void> {
+  const res = await fetch(`${API_URL}/devices/${deviceId}/renames/group-config`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ chart_group: chartGroup, group_description: description, group_sort_order: sortOrder }),
+  });
+  if (!res.ok) throw new Error('Failed to update group config');
+}
+
+export async function updateSubGroupConfig(
+  deviceId: string,
+  chartGroup: string,
+  subGroup: string,
+  description?: string,
+  sortOrder?: number
+): Promise<void> {
+  const res = await fetch(`${API_URL}/devices/${deviceId}/renames/subgroup-config`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ chart_group: chartGroup, sub_group: subGroup, sub_group_description: description, sub_group_sort_order: sortOrder }),
+  });
+  if (!res.ok) throw new Error('Failed to update subgroup config');
 }

@@ -134,7 +134,7 @@ func (s *Store) GetReadings(ctx context.Context, deviceID string, fields []strin
 		LEFT JOIN field_renames fr ON fr.device_id = r.device_id AND fr.raw_field = r.field_name
 		WHERE r.device_id = $1 AND r.field_name = ANY($2)
 		  AND r.ts > $3 AND r.ts < $4
-		ORDER BY r.ts
+		ORDER BY r.ts, r.field_name
 	`, deviceID, fields, from, to)
 	if err != nil {
 		return nil, err

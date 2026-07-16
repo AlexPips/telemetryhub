@@ -112,6 +112,8 @@ func (s *Server) setupRoutes() {
 	adminGroup.GET("/devices/:id/renames", s.renameH.ListRenames)
 	adminGroup.PUT("/devices/:id/renames/:field", s.renameH.UpdateRename)
 	adminGroup.DELETE("/devices/:id/renames/:field", s.renameH.DeleteRename)
+	adminGroup.POST("/devices/:id/renames/group-config", s.renameH.BatchUpdateGroupConfig)
+	adminGroup.POST("/devices/:id/renames/subgroup-config", s.renameH.BatchUpdateSubGroupConfig)
 
 	// Broker status (admin)
 	adminGroup.GET("/brokers", s.listBrokers)

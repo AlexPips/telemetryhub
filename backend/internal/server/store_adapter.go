@@ -143,7 +143,8 @@ func (a *StoreAdapter) GetReadings(ctx context.Context, deviceID string, fields 
 
 func (a *StoreAdapter) ListRenames(ctx context.Context, deviceID string) ([]handlers.FieldRename, error) {
 	rows, err := a.pool.Query(ctx, `
-		SELECT device_id, raw_field, display_name, unit, chart_group, sub_group
+		SELECT device_id, raw_field, display_name, unit, chart_group, sub_group,
+		       group_description, sub_group_description, group_sort_order, sub_group_sort_order
 		FROM field_renames WHERE device_id = $1
 	`, deviceID)
 	if err != nil {
@@ -154,7 +155,8 @@ func (a *StoreAdapter) ListRenames(ctx context.Context, deviceID string) ([]hand
 	var renames []handlers.FieldRename
 	for rows.Next() {
 		var r handlers.FieldRename
-		if err := rows.Scan(&r.DeviceID, &r.RawField, &r.DisplayName, &r.Unit, &r.ChartGroup, &r.SubGroup); err != nil {
+		if err := rows.Scan(&r.DeviceID, &r.RawField, &r.DisplayName, &r.Unit, &r.ChartGroup, &r.SubGroup,
+			&r.GroupDescription, &r.SubGroupDescription, &r.GroupSortOrder, &r.SubGroupSortOrder); err != nil {
 			return nil, err
 		}
 		renames = append(renames, r)
@@ -184,5 +186,21 @@ func (a *StoreAdapter) DeleteRename(ctx context.Context, deviceID, rawField stri
 	_, err := a.pool.Exec(ctx, `
 		DELETE FROM field_renames WHERE device_id = $1 AND raw_field = $2
 	`, deviceID, rawField)
+	return err
+}
+
+func (a *StoreAdapter) UpdateGroupConfig(ctx context.Context, deviceID, chartGroup string, description *string, sortOrder *int) error {
+	_, err := a.pool.Exec(ctx, `
+		UPDATE field_renames SET group_description = $3, group_sort_order = $4
+		WHERE device_id = $1 AND chart_group = $2
+	`, deviceID, chartGroup, description, sortOrder)
+	return err
+}
+
+func (a *StoreAdapter) UpdateSubGroupConfig(ctx context.Context, deviceID, chartGroup, subGroup string, description *string, sortOrder *int) error {
+	_, err := a.pool.Exec(ctx, `
+		UPDATE field_renames SET sub_group_description = $4, sub_group_sort_order = $5
+		WHERE device_id = $1 AND chart_group = $2 AND sub_group = $3
+	`, deviceID, chartGroup, subGroup, description, sortOrder)
 	return err
 }
