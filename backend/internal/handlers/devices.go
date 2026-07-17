@@ -31,12 +31,16 @@ type ReadingResult struct {
 
 // FieldRename represents a field rename configuration.
 type FieldRename struct {
-	DeviceID    string  `json:"device_id"`
-	RawField    string  `json:"raw_field"`
-	DisplayName *string `json:"display_name,omitempty"`
-	Unit        *string `json:"unit,omitempty"`
-	ChartGroup  *string `json:"chart_group,omitempty"`
-	SubGroup    *string `json:"sub_group,omitempty"`
+	DeviceID            string  `json:"device_id"`
+	RawField            string  `json:"raw_field"`
+	DisplayName         *string `json:"display_name,omitempty"`
+	Unit                *string `json:"unit,omitempty"`
+	ChartGroup          *string `json:"chart_group,omitempty"`
+	SubGroup            *string `json:"sub_group,omitempty"`
+	GroupDescription    *string `json:"group_description,omitempty"`
+	SubGroupDescription *string `json:"sub_group_description,omitempty"`
+	GroupSortOrder      *int    `json:"group_sort_order,omitempty"`
+	SubGroupSortOrder   *int    `json:"sub_group_sort_order,omitempty"`
 }
 
 // DeviceStore defines the interface for device operations.
@@ -51,6 +55,8 @@ type DeviceStore interface {
 	CreateRename(ctx context.Context, deviceID, rawField string, displayName, unit, chartGroup, subGroup *string) error
 	UpdateRename(ctx context.Context, deviceID, rawField string, displayName, unit, chartGroup, subGroup *string) error
 	DeleteRename(ctx context.Context, deviceID, rawField string) error
+	UpdateGroupConfig(ctx context.Context, deviceID, chartGroup string, description *string, sortOrder *int) error
+	UpdateSubGroupConfig(ctx context.Context, deviceID, chartGroup, subGroup string, description *string, sortOrder *int) error
 }
 
 // UpdateDeviceRequest represents an update device request.

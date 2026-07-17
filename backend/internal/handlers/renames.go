@@ -150,3 +150,44 @@ func (h *RenameHandler) DeleteRename(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, map[string]string{"message": "Rename deleted"})
 }
+
+// BatchUpdateGroupConfig updates group_description and group_sort_order for all fields in a group.
+func (h *RenameHandler) BatchUpdateGroupConfig(c echo.Context) error {
+	deviceID := c.Param("id")
+	var req struct {
+		ChartGroup  string  `json:"chart_group"`
+		Description *string `json:"group_description"`
+		SortOrder   *int    `json:"group_sort_order"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
+	}
+	if req.ChartGroup == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "chart_group is required"})
+	}
+	if err := h.store.UpdateGroupConfig(c.Request().Context(), deviceID, req.ChartGroup, req.Description, req.SortOrder); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]string{"message": "Group config updated"})
+}
+
+// BatchUpdateSubGroupConfig updates sub_group_description and sub_group_sort_order for all fields in a subgroup.
+func (h *RenameHandler) BatchUpdateSubGroupConfig(c echo.Context) error {
+	deviceID := c.Param("id")
+	var req struct {
+		ChartGroup  string  `json:"chart_group"`
+		SubGroup    string  `json:"sub_group"`
+		Description *string `json:"sub_group_description"`
+		SortOrder   *int    `json:"sub_group_sort_order"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
+	}
+	if req.ChartGroup == "" || req.SubGroup == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "chart_group and sub_group are required"})
+	}
+	if err := h.store.UpdateSubGroupConfig(c.Request().Context(), deviceID, req.ChartGroup, req.SubGroup, req.Description, req.SortOrder); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]string{"message": "Subgroup config updated"})
+}

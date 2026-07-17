@@ -92,8 +92,13 @@ export default function DeviceDetailPage() {
 
   const chartGroups = useMemo(() => {
     if (!fieldsHydrated) return { groups: [], ungrouped: [] };
+    // Build maps: field → group, field → subgroup, field → sort orders
     const fieldGroupMap = new Map<string, string>();
     const fieldSubGroupMap = new Map<string, string>();
+    const fieldGroupDescMap = new Map<string, string>();
+    const fieldSubGroupDescMap = new Map<string, string>();
+    const groupSortMap = new Map<string, number>();
+    const subGroupSortMap = new Map<string, number>();
     for (const r of renames) {
       if (r.chart_group?.trim()) {
         fieldGroupMap.set(r.raw_field, r.chart_group.trim());
@@ -101,7 +106,20 @@ export default function DeviceDetailPage() {
       if (r.sub_group?.trim()) {
         fieldSubGroupMap.set(r.raw_field, r.sub_group.trim());
       }
+      if (r.chart_group?.trim() && r.group_description?.trim()) {
+        fieldGroupDescMap.set(r.chart_group.trim(), r.group_description.trim());
+      }
+      if (r.sub_group?.trim() && r.sub_group_description?.trim()) {
+        fieldSubGroupDescMap.set(r.sub_group.trim(), r.sub_group_description.trim());
+      }
+      if (r.chart_group?.trim() && r.group_sort_order != null) {
+        groupSortMap.set(r.chart_group.trim(), r.group_sort_order);
+      }
+      if (r.sub_group?.trim() && r.sub_group_sort_order != null) {
+        subGroupSortMap.set(r.sub_group.trim(), r.sub_group_sort_order);
+      }
     }
+    // Partition selected fields into grouped vs ungrouped
     const chartGroupMap = new Map<string, string[]>();
     const ungrouped: string[] = [];
     for (const field of selectedFields) {
@@ -117,10 +135,11 @@ export default function DeviceDetailPage() {
         ungrouped.push(field);
       }
     }
-    const groups = Array.from(chartGroupMap.entries()).map(([groupName, fields]) => {
+    // Build group objects, sorting subgroups by sort_order
+    const groups = Array.from(chartGroupMap.entries()).map(([groupName, flds]) => {
       const subGroupFields = new Map<string, string[]>();
       const soloFields: string[] = [];
-      for (const field of fields) {
+      for (const field of flds) {
         const sg = fieldSubGroupMap.get(field);
         if (sg) {
           const existing = subGroupFields.get(sg);
@@ -134,10 +153,23 @@ export default function DeviceDetailPage() {
         }
       }
       const subGroups = Array.from(subGroupFields.entries())
-        .map(([subGroupName, flds]) => ({ subGroupName, fields: flds }))
-        .sort((a, b) => a.subGroupName.localeCompare(b.subGroupName));
-      return { groupName, subGroups, soloFields };
+        .map(([subGroupName, sflds]) => ({
+          subGroupName,
+          fields: sflds,
+          description: fieldSubGroupDescMap.get(subGroupName) || undefined,
+          sortOrder: subGroupSortMap.get(subGroupName) ?? 0,
+        }))
+        .sort((a, b) => a.sortOrder - b.sortOrder || a.subGroupName.localeCompare(b.subGroupName));
+      return {
+        groupName,
+        subGroups,
+        soloFields,
+        description: fieldGroupDescMap.get(groupName) || undefined,
+        sortOrder: groupSortMap.get(groupName) ?? 0,
+      };
     });
+    // Sort groups by sort_order
+    groups.sort((a, b) => a.sortOrder - b.sortOrder || a.groupName.localeCompare(b.groupName));
     return { groups, ungrouped };
   }, [selectedFields, renames, fieldsHydrated]);
 
@@ -274,6 +306,10 @@ export default function DeviceDetailPage() {
         unit: rename?.unit,
         chartGroup: rename?.chart_group,
         subGroup: rename?.sub_group,
+        groupDescription: rename?.group_description,
+        subGroupDescription: rename?.sub_group_description,
+        groupSortOrder: rename?.group_sort_order,
+        subGroupSortOrder: rename?.sub_group_sort_order,
       };
     },
     [renames]
@@ -389,6 +425,9 @@ export default function DeviceDetailPage() {
                 <GroupChart
                   key={`${group.groupName}::${sg.subGroupName}`}
                   groupName={`${group.groupName} – ${sg.subGroupName}`}
+                  subGroupName={sg.subGroupName}
+                  groupDescription={group.description}
+                  subGroupDescription={sg.description}
                   fields={sg.fields}
                   readings={readings}
                   renames={renames}
@@ -651,12 +690,18 @@ function FieldChart({
 
 function GroupChart({
   groupName,
+  subGroupName,
+  groupDescription,
+  subGroupDescription,
   fields,
   readings,
   renames,
   resetTrigger,
 }: {
   groupName: string;
+  subGroupName?: string;
+  groupDescription?: string;
+  subGroupDescription?: string;
   fields: string[];
   readings: ReadingData[];
   renames: FieldRename[];
@@ -756,7 +801,7 @@ function GroupChart({
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 flex flex-col">
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
+      <div className="flex items-center gap-2 mb-1 flex-wrap">
         <div className="flex items-center gap-2 min-w-0 shrink-0">
           <span className="text-base font-semibold text-foreground">{groupName}</span>
         </div>
@@ -774,6 +819,16 @@ function GroupChart({
           </div>
         )}
       </div>
+      {(groupDescription || subGroupDescription) && (
+        <div className="mb-2 space-y-0.5">
+          {groupDescription && (
+            <p className="text-sm text-muted-foreground">{groupDescription}</p>
+          )}
+          {subGroupDescription && (
+            <p className="text-xs text-muted-foreground/60 italic">{subGroupDescription}</p>
+          )}
+        </div>
+      )}
       <div
         ref={containerRef}
         className="w-full relative h-[260px]"

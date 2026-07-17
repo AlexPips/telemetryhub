@@ -39,6 +39,10 @@ type FieldRename struct {
 	Unit        *string `db:"unit" json:"unit,omitempty"`
 	ChartGroup  *string `db:"chart_group" json:"chart_group,omitempty"`
 	SubGroup    *string `db:"sub_group" json:"sub_group,omitempty"`
+	GroupDescription    *string `db:"group_description" json:"group_description,omitempty"`
+	SubGroupDescription *string `db:"sub_group_description" json:"sub_group_description,omitempty"`
+	GroupSortOrder      *int    `db:"group_sort_order" json:"group_sort_order,omitempty"`
+	SubGroupSortOrder   *int    `db:"sub_group_sort_order" json:"sub_group_sort_order,omitempty"`
 }
 
 // User represents a platform user with role-based access.
