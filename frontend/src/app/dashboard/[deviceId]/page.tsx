@@ -354,8 +354,6 @@ export default function DeviceDetailPage() {
         <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border bg-card p-3.5 text-xs text-muted-foreground">
           <span className="font-medium text-foreground/80">ID: <span className="text-muted-foreground">{device.id}</span></span>
           <span className="text-border">|</span>
-          <span className="font-medium text-foreground/80">Type: <span className="text-muted-foreground">{device.device_type}</span></span>
-          <span className="text-border">|</span>
           <span className="font-medium text-foreground/80">Broker: <span className="text-muted-foreground">{device.broker_name || '—'}</span></span>
           <span className="text-border">|</span>
           <span className="font-medium text-foreground/80">Fields: <span className="text-muted-foreground">{device.field_count}</span></span>
