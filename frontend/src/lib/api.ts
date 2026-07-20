@@ -8,6 +8,15 @@ export interface Device {
   last_seen: string;
   field_count: number;
   broker_name: string;
+  group_id?: number;
+  group_name?: string;
+}
+
+export interface DeviceGroup {
+  id: number;
+  name: string;
+  sort_order: number;
+  created_at: string;
 }
 
 export interface ReadingData {
@@ -214,4 +223,55 @@ export async function updateSubGroupConfig(
     body: JSON.stringify({ chart_group: chartGroup, sub_group: subGroup, sub_group_description: description, sub_group_sort_order: sortOrder }),
   });
   if (!res.ok) throw new Error('Failed to update subgroup config');
+}
+
+export async function getDeviceGroups(): Promise<DeviceGroup[]> {
+  const res = await fetch(`${API_URL}/device-groups`, { headers: getHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch device groups');
+  return res.json();
+}
+
+export async function createDeviceGroup(name: string): Promise<{ id: number; name: string }> {
+  const res = await fetch(`${API_URL}/device-groups`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw new Error('Failed to create device group');
+  return res.json();
+}
+
+export async function updateDeviceGroup(id: number, name: string): Promise<void> {
+  const res = await fetch(`${API_URL}/device-groups/${id}`, {
+    method: 'PUT',
+    headers: getHeaders(),
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw new Error('Failed to update device group');
+}
+
+export async function deleteDeviceGroup(id: number): Promise<void> {
+  const res = await fetch(`${API_URL}/device-groups/${id}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to delete device group');
+}
+
+export async function reorderDeviceGroups(order: number[]): Promise<void> {
+  const res = await fetch(`${API_URL}/device-groups/reorder`, {
+    method: 'PUT',
+    headers: getHeaders(),
+    body: JSON.stringify({ order }),
+  });
+  if (!res.ok) throw new Error('Failed to reorder device groups');
+}
+
+export async function setDeviceGroup(deviceId: string, groupId: number | null): Promise<void> {
+  const res = await fetch(`${API_URL}/devices/${deviceId}/group`, {
+    method: 'PUT',
+    headers: getHeaders(),
+    body: JSON.stringify({ group_id: groupId }),
+  });
+  if (!res.ok) throw new Error('Failed to set device group');
 }

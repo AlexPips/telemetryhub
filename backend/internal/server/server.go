@@ -31,6 +31,7 @@ type Server struct {
 	devH    *handlers.DeviceHandler
 	readH   *handlers.ReadingHandler
 	renameH *handlers.RenameHandler
+	devGroupH *handlers.DeviceGroupHandler
 	mqttMgr *mqtt.BrokerManager
 }
 
@@ -59,6 +60,7 @@ func New(cfg *config.Config, pool *pgxpool.Pool, mqttMgr *mqtt.BrokerManager) (*
 	devH := handlers.NewDeviceHandler(store)
 	readH := handlers.NewReadingHandler(store)
 	renameH := handlers.NewRenameHandler(store)
+	devGroupH := handlers.NewDeviceGroupHandler(store)
 
 	s := &Server{
 		echo:    e,
@@ -68,6 +70,7 @@ func New(cfg *config.Config, pool *pgxpool.Pool, mqttMgr *mqtt.BrokerManager) (*
 		devH:    devH,
 		readH:   readH,
 		renameH: renameH,
+		devGroupH: devGroupH,
 		mqttMgr: mqttMgr,
 	}
 
@@ -114,6 +117,14 @@ func (s *Server) setupRoutes() {
 	adminGroup.DELETE("/devices/:id/renames/:field", s.renameH.DeleteRename)
 	adminGroup.POST("/devices/:id/renames/group-config", s.renameH.BatchUpdateGroupConfig)
 	adminGroup.POST("/devices/:id/renames/subgroup-config", s.renameH.BatchUpdateSubGroupConfig)
+
+	// Device group endpoints
+	authGroup.GET("/device-groups", s.devGroupH.List)
+	adminGroup.POST("/device-groups", s.devGroupH.Create)
+	adminGroup.PUT("/device-groups/:id", s.devGroupH.Update)
+	adminGroup.DELETE("/device-groups/:id", s.devGroupH.Delete)
+	adminGroup.PUT("/device-groups/reorder", s.devGroupH.Reorder)
+	adminGroup.PUT("/devices/:id/group", s.devGroupH.SetDeviceGroup)
 
 	// Broker status (admin)
 	adminGroup.GET("/brokers", s.listBrokers)

@@ -1,42 +1,127 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
-import { getDevices, deleteDevice, type Device } from '@/lib/api';
+import {
+  getDevices, deleteDevice, getDeviceGroups, createDeviceGroup,
+  updateDeviceGroup, deleteDeviceGroup, reorderDeviceGroups,
+  setDeviceGroup, type Device, type DeviceGroup,
+} from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Loader2, Trash2, Cpu, Server, Clock, Hash, Activity } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Loader2, Plus, Cpu } from 'lucide-react';
+import { DeviceGroupSection } from '@/components/device-group-section';
 
 export default function DashboardPage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isAdmin, isLoading: authLoading } = useAuth();
   const [devices, setDevices] = useState<Device[]>([]);
+  const [groups, setGroups] = useState<DeviceGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [newGroupName, setNewGroupName] = useState('');
   const router = useRouter();
 
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
-      return;
     }
   }, [user, authLoading, router]);
 
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     if (!user) return;
-
-    getDevices()
-      .then(setDevices)
-      .catch(() => setDevices([]))
-      .finally(() => setIsLoading(false));
+    try {
+      const [d, g] = await Promise.all([getDevices(), getDeviceGroups()]);
+      setDevices(d);
+      setGroups(g);
+    } catch {
+      setDevices([]);
+      setGroups([]);
+    } finally {
+      setIsLoading(false);
+    }
   }, [user]);
 
-  if (authLoading || !user) {
-    return (
-      <div className="flex min-h-svh w-full items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
-    );
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const groupedDevices = useMemo(() => {
+    const map = new Map<number, Device[]>();
+    const ungrouped: Device[] = [];
+    for (const device of devices) {
+      if (device.group_id) {
+        const arr = map.get(device.group_id) || [];
+        arr.push(device);
+        map.set(device.group_id, arr);
+      } else {
+        ungrouped.push(device);
+      }
+    }
+    return { map, ungrouped };
+  }, [devices]);
+
+  const sortedGroups = useMemo(() => {
+    return [...groups]
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((g) => ({ ...g, devices: groupedDevices.map.get(g.id) || [] }));
+  }, [groups, groupedDevices]);
+
+  async function handleCreateGroup() {
+    const trimmed = newGroupName.trim();
+    if (!trimmed) return;
+    try {
+      await createDeviceGroup(trimmed);
+      setNewGroupName('');
+      loadData();
+    } catch {
+      alert('Failed to create group');
+    }
+  }
+
+  async function handleRenameGroup(id: number, newName: string) {
+    try {
+      await updateDeviceGroup(id, newName);
+      loadData();
+    } catch {
+      alert('Failed to rename group');
+    }
+  }
+
+  async function handleDeleteGroup(id: number) {
+    const group = groups.find((g) => g.id === id);
+    const deviceCount = groupedDevices.map.get(id)?.length || 0;
+    const msg = deviceCount > 0
+      ? `Delete group "${group?.name}"? ${deviceCount} device(s) will become ungrouped.`
+      : `Delete empty group "${group?.name}"?`;
+    if (!confirm(msg)) return;
+    try {
+      await deleteDeviceGroup(id);
+      loadData();
+    } catch {
+      alert('Failed to delete group');
+    }
+  }
+
+  async function handleMoveGroup(id: number, direction: -1 | 1) {
+    const sorted = [...groups].sort((a, b) => a.sort_order - b.sort_order);
+    const idx = sorted.findIndex((g) => g.id === id);
+    if (idx < 0) return;
+    const targetIdx = idx + direction;
+    if (targetIdx < 0 || targetIdx >= sorted.length) return;
+    const reordered = [...sorted];
+    [reordered[idx], reordered[targetIdx]] = [reordered[targetIdx], reordered[idx]];
+    try {
+      await reorderDeviceGroups(reordered.map((g) => g.id));
+      loadData();
+    } catch {
+      alert('Failed to reorder groups');
+    }
+  }
+
+  async function handleAssignDevice(deviceId: string, groupId: number | null) {
+    try {
+      await setDeviceGroup(deviceId, groupId);
+      loadData();
+    } catch {
+      alert('Failed to assign device');
+    }
   }
 
   async function handleDeleteDevice(deviceId: string, e: React.MouseEvent) {
@@ -51,10 +136,34 @@ export default function DashboardPage() {
     }
   }
 
+  if (authLoading || !user) {
+    return (
+      <div className="flex min-h-svh w-full items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full mx-auto p-6 max-md:p-4">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Dashboard</h1>
+        {isAdmin && (
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreateGroup()}
+              placeholder="New group name"
+              className="h-9 px-3 text-sm border border-input rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
+              style={{ backgroundColor: 'var(--secondary)', color: 'var(--secondary-foreground)' }}
+            />
+            <Button variant="outline" size="sm" onClick={handleCreateGroup} disabled={!newGroupName.trim()}>
+              <Plus className="h-4 w-4 mr-1" />Add Group
+            </Button>
+          </div>
+        )}
       </div>
 
       {isLoading ? (
@@ -67,83 +176,39 @@ export default function DashboardPage() {
             <Cpu className="h-6 w-6 text-muted-foreground" />
           </div>
           <h3 className="mb-1 text-lg font-medium text-foreground">No devices found</h3>
-          <p className="text-sm text-muted-foreground">
-            Connect an MQTT broker to start receiving data.
-          </p>
+          <p className="text-sm text-muted-foreground">Connect an MQTT broker to start receiving data.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {devices.map((device) => (
-            <DeviceCard 
-              key={device.id} 
-              device={device} 
-              isAdmin={user?.role === 'admin'} 
-              onDelete={(e) => handleDeleteDevice(device.id, e)} 
+        <div className="space-y-8">
+          {sortedGroups.map((group, idx) => (
+            <DeviceGroupSection
+              key={group.id}
+              groupName={group.name}
+              devices={group.devices}
+              isAdmin={isAdmin}
+              sortOrder={idx}
+              totalGroups={sortedGroups.length + (groupedDevices.ungrouped.length > 0 ? 1 : 0)}
+              availableGroups={groups}
+              onMoveUp={() => handleMoveGroup(group.id, -1)}
+              onMoveDown={() => handleMoveGroup(group.id, 1)}
+              onRename={(name) => handleRenameGroup(group.id, name)}
+              onDelete={() => handleDeleteGroup(group.id)}
+              onAssignDevice={handleAssignDevice}
             />
           ))}
+          {groupedDevices.ungrouped.length > 0 && (
+            <DeviceGroupSection
+              groupName="Ungrouped"
+              devices={groupedDevices.ungrouped}
+              isAdmin={isAdmin}
+              sortOrder={sortedGroups.length}
+              totalGroups={sortedGroups.length + 1}
+              availableGroups={groups}
+              onAssignDevice={handleAssignDevice}
+            />
+          )}
         </div>
       )}
     </div>
-  );
-}
-
-function DeviceCard({ device, isAdmin, onDelete }: { device: Device; isAdmin: boolean; onDelete: (e: React.MouseEvent) => void }) {
-  const isOnline =
-    new Date().getTime() - new Date(device.last_seen).getTime() < 15 * 60 * 1000;
-
-  return (
-    <Link href={`/dashboard/${device.id}`} className="group block">
-      <div className="relative h-full rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/50 hover:shadow-lg">
-        <div className="mb-4 flex items-start justify-between gap-2">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
-              <Activity className="h-5 w-5" />
-            </div>
-            <h3 className="truncate text-base font-semibold text-foreground">{device.name || device.id}</h3>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <span
-              className={cn(
-                "flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium",
-                isOnline ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
-              )}
-            >
-              <span className={cn("h-1.5 w-1.5 rounded-full", isOnline ? "bg-emerald-500" : "bg-red-500")} />
-              {isOnline ? 'Online' : 'Offline'}
-            </span>
-            {isAdmin && (
-              <Button
-                variant="destructive"
-                size="icon-sm"
-                className="opacity-0 transition-opacity group-hover:opacity-100"
-                onClick={onDelete}
-                aria-label="Delete device"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-2 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Hash className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">{device.id}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Cpu className="h-3.5 w-3.5 shrink-0" />
-            <span>{device.device_type}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Server className="h-3.5 w-3.5 shrink-0" />
-            <span>{device.broker_name || '—'}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Clock className="h-3.5 w-3.5 shrink-0" />
-            <span>{new Date(device.last_seen).toLocaleString()}</span>
-          </div>
-        </div>
-      </div>
-    </Link>
   );
 }

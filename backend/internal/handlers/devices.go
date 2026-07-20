@@ -18,6 +18,15 @@ type DeviceRow struct {
 	LastSeen   time.Time `json:"last_seen"`
 	FieldCount int       `json:"field_count"`
 	BrokerName string    `json:"broker_name"`
+	GroupID    *int      `json:"group_id,omitempty"`
+	GroupName  *string   `json:"group_name,omitempty"`
+}
+
+type DeviceGroup struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	SortOrder int       `json:"sort_order"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // ReadingResult represents a sensor reading with metadata.
@@ -57,6 +66,12 @@ type DeviceStore interface {
 	DeleteRename(ctx context.Context, deviceID, rawField string) error
 	UpdateGroupConfig(ctx context.Context, deviceID, chartGroup string, description *string, sortOrder *int) error
 	UpdateSubGroupConfig(ctx context.Context, deviceID, chartGroup, subGroup string, description *string, sortOrder *int) error
+	ListDeviceGroups(ctx context.Context) ([]DeviceGroup, error)
+	CreateDeviceGroup(ctx context.Context, name string) (int, error)
+	UpdateDeviceGroup(ctx context.Context, id int, name string) error
+	DeleteDeviceGroup(ctx context.Context, id int) error
+	ReorderDeviceGroups(ctx context.Context, order []int) error
+	SetDeviceGroup(ctx context.Context, deviceID string, groupID *int) error
 }
 
 // UpdateDeviceRequest represents an update device request.
