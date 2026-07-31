@@ -22,6 +22,7 @@ import {
   ChevronUp,
   ChevronDown,
   Plus,
+  Download,
 } from 'lucide-react';
 import {
   updateDevice,
@@ -32,9 +33,11 @@ import {
   deleteRename,
   updateGroupConfig,
   updateSubGroupConfig,
+  exportDeviceData,
   type Device,
   type FieldRename,
 } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
 
 const inputClasses =
   'flex h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 transition-colors';
@@ -66,6 +69,7 @@ export default function DeviceSettingsModal({
   const [isDeletingDevice, setIsDeletingDevice] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
+  const { isAdmin } = useAuth();
 
   const handleSaveDevice = async () => {
     setIsSavingDevice(true);
@@ -243,6 +247,14 @@ export default function DeviceSettingsModal({
                 >
                   Groups
                 </Tabs.Tab>
+                {isAdmin && (
+                  <Tabs.Tab
+                    value="export"
+                    className="px-4 py-2.5 text-sm font-medium text-muted-foreground border-b-2 border-transparent transition-colors cursor-pointer data-[selected]:text-foreground data-[selected]:border-primary aria-selected:text-foreground aria-selected:border-primary aria-selected:bg-muted/50"
+                  >
+                    Export Data
+                  </Tabs.Tab>
+                )}
               </Tabs.List>
 
               <Tabs.Panel value="sensors" className="pt-4 min-w-0">
@@ -269,6 +281,18 @@ export default function DeviceSettingsModal({
                   onRenamesChange={onRenamesChange}
                 />
               </Tabs.Panel>
+
+              {isAdmin && (
+                <Tabs.Panel value="export" className="pt-4 min-w-0">
+                  <ExportTab
+                    deviceId={deviceId}
+                    fields={fields}
+                    renames={renames}
+                    groupContext={groupContext}
+                    allGroups={allGroupsSorted}
+                  />
+                </Tabs.Panel>
+              )}
             </Tabs.Root>
           </div>
         </div>
@@ -881,6 +905,243 @@ function GroupsTab({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/* ──────────────────────────── Export Data Tab ──────────────────────────── */
+
+function ExportTab({
+  deviceId,
+  fields,
+  renames,
+  groupContext,
+  allGroups,
+}: {
+  deviceId: string;
+  fields: string[];
+  renames: FieldRename[];
+  groupContext: {
+    groups: Map<string, { description: string; sortOrder: number; fields: string[] }>;
+    subGroups: Map<string, { description: string; sortOrder: number }>;
+  };
+  allGroups: string[];
+}) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<'csv' | 'json' | null>(null);
+
+  const ungroupedFields = useMemo(
+    () =>
+      fields.filter(
+        (f) => !renames.some((r) => r.raw_field === f && !!r.chart_group?.trim())
+      ),
+    [fields, renames]
+  );
+
+  const toggleField = (f: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(f)) {
+        next.delete(f);
+      } else {
+        next.add(f);
+      }
+      return next;
+    });
+  };
+
+  const toggleGroup = (g: string) => {
+    const groupFields = groupContext.groups.get(g)?.fields || [];
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const allSelected = groupFields.every((f) => next.has(f));
+      for (const f of groupFields) {
+        if (allSelected) {
+          next.delete(f);
+        } else {
+          next.add(f);
+        }
+      }
+      return next;
+    });
+  };
+
+  const selectAll = () => setSelected(new Set(fields));
+  const clearAll = () => setSelected(new Set());
+
+  const rangeValid = useMemo(() => {
+    if (!from || !to) return false;
+    return new Date(from).getTime() < new Date(to).getTime();
+  }, [from, to]);
+
+  const canDownload = selected.size > 0 && rangeValid && !downloading;
+
+  const handleDownload = async (format: 'csv' | 'json') => {
+    setError(null);
+    setDownloading(format);
+    try {
+      const blob = await exportDeviceData(
+        deviceId,
+        Array.from(selected),
+        new Date(from).toISOString(),
+        new Date(to).toISOString(),
+        format
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${deviceId.replace(/[^A-Za-z0-9._-]+/g, '_')}_${new Date(from)
+        .toISOString()
+        .replace(/[:.]/g, '-')}_${new Date(to).toISOString().replace(/[:.]/g, '-')}.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Export failed');
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  return (
+    <div className="space-y-4 min-w-0">
+      <div className="flex items-center justify-between gap-4">
+        <h3 className="text-sm font-medium text-foreground whitespace-nowrap">
+          Export Data
+        </h3>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="outline" size="sm" onClick={selectAll} disabled={fields.length === 0}>
+            Select all
+          </Button>
+          <Button variant="outline" size="sm" onClick={clearAll} disabled={selected.size === 0}>
+            Clear
+          </Button>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Select sensors, pick a time range, then download the readings as CSV or JSON.
+      </p>
+
+      {/* Selection tree */}
+      <div className="space-y-3 rounded-lg border border-border p-4 bg-card/50">
+        {allGroups.length === 0 && ungroupedFields.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-2">
+            No sensors available for this device.
+          </p>
+        ) : (
+          <>
+            {allGroups.map((groupName) => {
+              const groupFields = groupContext.groups.get(groupName)?.fields || [];
+              const groupSelected = groupFields.every((f) => selected.has(f));
+              return (
+                <div key={groupName} className="space-y-1">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-input"
+                      checked={groupSelected && groupFields.length > 0}
+                      onChange={() => toggleGroup(groupName)}
+                    />
+                    <span className="text-sm font-medium text-foreground">{groupName}</span>
+                    <span className="text-[10px] text-muted-foreground/70">
+                      {groupFields.length} sensor{groupFields.length !== 1 ? 's' : ''}
+                    </span>
+                  </label>
+                  <div className="pl-6 space-y-1">
+                    {groupFields.map((f) => (
+                      <label
+                        key={f}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-input"
+                          checked={selected.has(f)}
+                          onChange={() => toggleField(f)}
+                        />
+                        <span className="font-mono text-xs text-muted-foreground">{f}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            {ungroupedFields.length > 0 && (
+              <div className="space-y-1 pt-2 border-t border-border/50">
+                <span className="text-xs font-medium text-muted-foreground">Ungrouped</span>
+                {ungroupedFields.map((f) => (
+                  <label key={f} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-input"
+                      checked={selected.has(f)}
+                      onChange={() => toggleField(f)}
+                    />
+                    <span className="font-mono text-xs text-muted-foreground">{f}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Time range */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-1 min-w-0">
+          <label className="text-xs text-muted-foreground">From</label>
+          <input
+            type="datetime-local"
+            className={inputClasses}
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1 min-w-0">
+          <label className="text-xs text-muted-foreground">To</label>
+          <input
+            type="datetime-local"
+            className={inputClasses}
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+          />
+        </div>
+      </div>
+      {from && to && !rangeValid && (
+        <p className="text-xs text-destructive">&quot;To&quot; must be after &quot;From&quot;.</p>
+      )}
+
+      {/* Actions */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="default"
+          onClick={() => handleDownload('csv')}
+          disabled={!canDownload}
+        >
+          {downloading === 'csv' ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+          Download CSV
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => handleDownload('json')}
+          disabled={!canDownload}
+        >
+          {downloading === 'json' ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+          Download JSON
+        </Button>
+      </div>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
   );
 }
