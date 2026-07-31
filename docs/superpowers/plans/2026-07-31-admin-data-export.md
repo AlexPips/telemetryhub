@@ -741,9 +741,10 @@ import { useAuth } from '@/lib/auth-context';
 In `DeviceSettingsModal`, add after `const router = useRouter();` (line 68):
 
 ```tsx
-const { user } = useAuth();
-const isAdmin = user?.role === 'admin';
+const { isAdmin } = useAuth();
 ```
+
+(`useAuth()` from `@/lib/auth-context` already exposes `isAdmin` computed as `user?.role === 'admin'` — verified against `auth-context.tsx` line 48.)
 
 In the `<Tabs.Root defaultValue="sensors">` block (after the "Groups" `<Tabs.Tab>` on line 245), add the third tab conditionally:
 
@@ -807,14 +808,6 @@ function ExportTab({
     () =>
       fields.filter(
         (f) => !renames.some((r) => r.raw_field === f && !!r.chart_group?.trim())
-      ),
-    [fields, renames]
-  );
-
-  const groupedFields = useMemo(
-    () =>
-      fields.filter((f) =>
-        renames.some((r) => r.raw_field === f && !!r.chart_group?.trim())
       ),
     [fields, renames]
   );
