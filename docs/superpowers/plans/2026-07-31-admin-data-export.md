@@ -577,9 +577,11 @@ func (a *StoreAdapter) StreamReadings(ctx context.Context, deviceID string, fiel
 			return err
 		}
 	}
-	return rows.Err()
-}
-```
+ 	return rows.Err()
+ }
+ ```
+
+> **NOTE (verified 2026-07-31):** The WHERE clause uses **exclusive** bounds (`r.ts > $3 AND r.ts < $4`), copied verbatim from `Store.GetReadings` (store.go line ~135). This is INTENTIONAL — export must return exactly what the chart shows. Do NOT change to inclusive (`>=`/`<=`); the readings chart endpoint uses the same exclusive bounds, and parity between chart and export is the spec requirement. `CountReadings` must use the identical WHERE clause so the count and the stream always agree.
 
 Also append this compile-time assertion at the end of the file (after the last method):
 
