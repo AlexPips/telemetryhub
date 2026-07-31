@@ -275,3 +275,27 @@ export async function setDeviceGroup(deviceId: string, groupId: number | null): 
   });
   if (!res.ok) throw new Error('Failed to set device group');
 }
+
+export async function exportDeviceData(
+  deviceId: string,
+  fields: string[],
+  from: string,
+  to: string,
+  format: 'csv' | 'json'
+): Promise<Blob> {
+  const params = new URLSearchParams({
+    fields: fields.join(','),
+    from,
+    to,
+    format,
+  });
+  const res = await fetch(
+    `${API_URL}/devices/${encodeURIComponent(deviceId)}/export?${params}`,
+    { headers: getHeaders() }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Export failed' }));
+    throw new Error(err.error || 'Export failed');
+  }
+  return res.blob();
+}
