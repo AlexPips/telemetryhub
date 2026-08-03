@@ -144,6 +144,45 @@ func (a *StoreAdapter) GetReadings(ctx context.Context, deviceID string, fields 
 	return results, rows.Err()
 }
 
+func (a *StoreAdapter) CountReadings(ctx context.Context, deviceID string, fields []string, from, to time.Time) (int64, error) {
+	var count int64
+	err := a.pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM readings
+		WHERE device_id = $1 AND field_name = ANY($2)
+		  AND ts > $3 AND ts < $4
+	`, deviceID, fields, from, to).Scan(&count)
+	return count, err
+}
+
+func (a *StoreAdapter) StreamReadings(ctx context.Context, deviceID string, fields []string, from, to time.Time, fn func(handlers.ReadingResult) error) error {
+	rows, err := a.pool.Query(ctx, `
+		SELECT r.ts as bucket, r.field_name,
+		       r.value as value,
+		       COALESCE(fr.display_name, r.field_name) as display_name,
+		       COALESCE(fr.unit, '') as unit
+		FROM readings r
+		LEFT JOIN field_renames fr ON fr.device_id = r.device_id AND fr.raw_field = r.field_name
+		WHERE r.device_id = $1 AND r.field_name = ANY($2)
+		  AND r.ts > $3 AND r.ts < $4
+		ORDER BY r.ts, r.field_name
+	`, deviceID, fields, from, to)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var r handlers.ReadingResult
+		if err := rows.Scan(&r.Bucket, &r.FieldName, &r.Value, &r.DisplayName, &r.Unit); err != nil {
+			return err
+		}
+		if err := fn(r); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
+}
+
 func (a *StoreAdapter) ListRenames(ctx context.Context, deviceID string) ([]handlers.FieldRename, error) {
 	rows, err := a.pool.Query(ctx, `
 		SELECT device_id, raw_field, display_name, unit, chart_group, sub_group,
@@ -266,3 +305,5 @@ func (a *StoreAdapter) SetDeviceGroup(ctx context.Context, deviceID string, grou
 	_, err := a.pool.Exec(ctx, `UPDATE devices SET group_id = $2 WHERE id = $1`, deviceID, groupID)
 	return err
 }
+
+var _ handlers.ExportStore = (*StoreAdapter)(nil)

@@ -24,15 +24,16 @@ import (
 
 // Server represents the API server.
 type Server struct {
-	echo    *echo.Echo
-	pool    *pgxpool.Pool
-	cfg     *config.Config
-	authH   *auth.Handler
-	devH    *handlers.DeviceHandler
-	readH   *handlers.ReadingHandler
-	renameH *handlers.RenameHandler
+	echo      *echo.Echo
+	pool      *pgxpool.Pool
+	cfg       *config.Config
+	authH     *auth.Handler
+	devH      *handlers.DeviceHandler
+	readH     *handlers.ReadingHandler
+	renameH   *handlers.RenameHandler
 	devGroupH *handlers.DeviceGroupHandler
-	mqttMgr *mqtt.BrokerManager
+	exportH   *handlers.ExportHandler
+	mqttMgr   *mqtt.BrokerManager
 }
 
 // New creates a new API server with all routes configured.
@@ -61,17 +62,19 @@ func New(cfg *config.Config, pool *pgxpool.Pool, mqttMgr *mqtt.BrokerManager) (*
 	readH := handlers.NewReadingHandler(store)
 	renameH := handlers.NewRenameHandler(store)
 	devGroupH := handlers.NewDeviceGroupHandler(store)
+	exportH := handlers.NewExportHandler(store)
 
 	s := &Server{
-		echo:    e,
-		pool:    pool,
-		cfg:     cfg,
-		authH:   authH,
-		devH:    devH,
-		readH:   readH,
-		renameH: renameH,
+		echo:      e,
+		pool:      pool,
+		cfg:       cfg,
+		authH:     authH,
+		devH:      devH,
+		readH:     readH,
+		renameH:   renameH,
 		devGroupH: devGroupH,
-		mqttMgr: mqttMgr,
+		exportH:   exportH,
+		mqttMgr:   mqttMgr,
 	}
 
 	s.setupRoutes()
@@ -109,7 +112,7 @@ func (s *Server) setupRoutes() {
 	adminGroup.PUT("/devices/:id", s.devH.UpdateDevice)
 	adminGroup.DELETE("/devices/:id", s.devH.DeleteDevice)
 	adminGroup.DELETE("/devices/:id/fields/:field", s.devH.DeleteDeviceField)
-	
+
 	// Field rename endpoints
 	adminGroup.POST("/devices/:id/renames", s.renameH.CreateRename)
 	adminGroup.GET("/devices/:id/renames", s.renameH.ListRenames)
@@ -128,6 +131,9 @@ func (s *Server) setupRoutes() {
 
 	// Broker status (admin)
 	adminGroup.GET("/brokers", s.listBrokers)
+
+	// Data export (admin)
+	adminGroup.GET("/devices/:id/export", s.exportH.Export)
 }
 
 // Start starts the HTTP server.
