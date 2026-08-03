@@ -38,6 +38,7 @@ import {
   type FieldRename,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { DateTimePicker } from '@/components/date-time-picker';
 
 const inputClasses =
   'flex h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 transition-colors';
@@ -1025,7 +1026,11 @@ function ExportTab({
       </p>
 
       {/* Selection tree */}
-      <div className="space-y-3 rounded-lg border border-border p-4 bg-card/50">
+      <div className="space-y-2">
+        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          Sensors
+        </span>
+        <div className="space-y-3 rounded-lg border border-border p-4 bg-card/50">
         {allGroups.length === 0 && ungroupedFields.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-2">
             No sensors available for this device.
@@ -1040,12 +1045,12 @@ function ExportTab({
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 rounded border-input"
+                      className="h-4 w-4 rounded border-input accent-primary"
                       checked={groupSelected && groupFields.length > 0}
                       onChange={() => toggleGroup(groupName)}
                     />
                     <span className="text-sm font-medium text-foreground">{groupName}</span>
-                    <span className="text-[10px] text-muted-foreground/70">
+                    <span className="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                       {groupFields.length} sensor{groupFields.length !== 1 ? 's' : ''}
                     </span>
                   </label>
@@ -1057,7 +1062,7 @@ function ExportTab({
                       >
                         <input
                           type="checkbox"
-                          className="h-4 w-4 rounded border-input"
+                          className="h-4 w-4 rounded border-input accent-primary"
                           checked={selected.has(f)}
                           onChange={() => toggleField(f)}
                         />
@@ -1070,12 +1075,14 @@ function ExportTab({
             })}
             {ungroupedFields.length > 0 && (
               <div className="space-y-1 pt-2 border-t border-border/50">
-                <span className="text-xs font-medium text-muted-foreground">Ungrouped</span>
+                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Ungrouped
+                </span>
                 {ungroupedFields.map((f) => (
                   <label key={f} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 rounded border-input"
+                      className="h-4 w-4 rounded border-input accent-primary"
                       checked={selected.has(f)}
                       onChange={() => toggleField(f)}
                     />
@@ -1087,31 +1094,37 @@ function ExportTab({
           </>
         )}
       </div>
+      </div>
 
       {/* Time range */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1 min-w-0">
-          <label className="text-xs text-muted-foreground">From</label>
-          <input
-            type="datetime-local"
-            className={inputClasses}
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-          />
+      <div className="space-y-2">
+        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          Time range
+        </span>
+        <div className="flex flex-col sm:flex-row gap-3 max-w-md">
+          <div className="flex-1 space-y-1 min-w-0">
+            <label className="text-xs text-muted-foreground">From</label>
+            <DateTimePicker
+              value={from}
+              onChange={setFrom}
+              placeholder="Select start date & time"
+              aria-label="Export start date and time"
+            />
+          </div>
+          <div className="flex-1 space-y-1 min-w-0">
+            <label className="text-xs text-muted-foreground">To</label>
+            <DateTimePicker
+              value={to}
+              onChange={setTo}
+              placeholder="Select end date & time"
+              aria-label="Export end date and time"
+            />
+          </div>
         </div>
-        <div className="space-y-1 min-w-0">
-          <label className="text-xs text-muted-foreground">To</label>
-          <input
-            type="datetime-local"
-            className={inputClasses}
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-          />
-        </div>
+        {from && to && !rangeValid && (
+          <p className="text-xs text-destructive">&quot;To&quot; must be after &quot;From&quot;.</p>
+        )}
       </div>
-      {from && to && !rangeValid && (
-        <p className="text-xs text-destructive">&quot;To&quot; must be after &quot;From&quot;.</p>
-      )}
 
       {/* Actions */}
       <div className="flex items-center gap-2">
