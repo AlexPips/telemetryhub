@@ -9,39 +9,19 @@ stages:
 variables:
   FRONTEND_IMAGE: "$CI_REGISTRY_IMAGE/cardimedfrontend:$CI_COMMIT_SHA"
   BACKEND_IMAGE: "$CI_REGISTRY_IMAGE/cardimedbackend:$CI_COMMIT_SHA"
-  GIT_STRATEGY: fetch
 
-# --- One-off diagnostic job: run this once to confirm real paths, then remove it ---
-debug-repo-layout:
-  image: alpine:3.21
+build:
   stage: build
-  script:
-    - echo "Repo root contents:"
-    - ls -la
-    - echo "Looking for Dockerfiles anywhere in repo:"
-    - find . -iname "Dockerfile*" -not -path "./.git/*"
-
-build-frontend:
-  image: docker:24.0.2-cli
-  stage: build
+  image: docker:24
   services:
-    - docker:24.0.2-dind
+    - name: docker:24-dind
+      command: ["--tls=false"]
   script:
-    # TODO: confirm this path against debug-repo-layout output, e.g. "Dockerfile" if it's at repo root
-    - docker build --tag "$FRONTEND_IMAGE" --file Dockerfile .
-    - docker login --username gitlab-ci-token --password "$CI_JOB_TOKEN" "$CI_REGISTRY"
+    - docker info
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - docker build --build-arg NEXT_PUBLIC_API_URL=https://cardimed.192.168.1.50.nip.io/api/v1 -f docker/frontend.Dockerfile -t "$FRONTEND_IMAGE" ./frontend
     - docker push "$FRONTEND_IMAGE"
-
-build-backend:
-  image: docker:24.0.2-cli
-  stage: build
-  services:
-    - docker:24.0.2-dind
-  script:
-    # TODO: confirm this path — if backend code lives in a different repo,
-    # this job needs its own checkout of that project instead of a subfolder here
-    - docker build --tag "$BACKEND_IMAGE" --file Dockerfile.backend .
-    - docker login --username gitlab-ci-token --password "$CI_JOB_TOKEN" "$CI_REGISTRY"
+    - docker build -f docker/api.Dockerfile -t "$BACKEND_IMAGE" ./backend
     - docker push "$BACKEND_IMAGE"
 
 .container_scanning_base:
@@ -71,13 +51,15 @@ build-backend:
 
 container_scanning_frontend:
   extends: .container_scanning_base
-  needs: ["build-frontend"]
+  stage: test
+  needs: ["build"]
   before_script:
     - export CS_IMAGE="$FRONTEND_IMAGE"
 
 container_scanning_backend:
   extends: .container_scanning_base
-  needs: ["build-backend"]
+  stage: test
+  needs: ["build"]
   before_script:
     - export CS_IMAGE="$BACKEND_IMAGE"
 
@@ -87,16 +69,14 @@ deploy:
     name: bitnami/kubectl:latest
     entrypoint: [""]
   variables:
-    IMAGE_TAG: "$CI_COMMIT_SHA"
-    K8S_NAMESPACE: "cardimed"
+    IMAGE_TAG: $CI_COMMIT_SHA
+    K8S_NAMESPACE: cardimed
   needs:
-    - container_scanning_backend
     - container_scanning_frontend
+    - container_scanning_backend
   script:
     - kubectl config use-context rd-devs/k8s-connecttion:rnddevs-k8s-connection
-
     - kubectl apply --validate=false --insecure-skip-tls-verify -f k8s/namespace.yaml
-
     - kubectl delete secret gitlab-registry -n $K8S_NAMESPACE --ignore-not-found --insecure-skip-tls-verify
     - |
       kubectl create secret docker-registry gitlab-registry \
@@ -104,20 +84,16 @@ deploy:
         --docker-username="$CI_REGISTRY_USER" \
         --docker-password="$CI_REGISTRY_PASSWORD" \
         --docker-email="${GITLAB_USER_EMAIL:-$CI_COMMIT_AUTHOR_EMAIL}" \
-        -n $K8S_NAMESPACE
-
+        -n $K8S_NAMESPACE --insecure-skip-tls-verify
     - kubectl apply --validate=false --insecure-skip-tls-verify -f k8s/secrets.yaml
     - kubectl apply --validate=false --insecure-skip-tls-verify -f k8s/postgres.yaml
-
-    - envsubst < k8s/api.yaml > /tmp/api.yaml
+    - export IMAGE_TAG=$CI_COMMIT_SHA
+    - envsubst < k8s/api.yaml      > /tmp/api.yaml
     - envsubst < k8s/frontend.yaml > /tmp/frontend.yaml
-
     - kubectl apply --validate=false --insecure-skip-tls-verify -f /tmp/api.yaml
     - kubectl apply --validate=false --insecure-skip-tls-verify -f /tmp/frontend.yaml
     - kubectl apply --validate=false --insecure-skip-tls-verify -f k8s/ingress.yaml
-
-    - kubectl rollout restart deployment/api-server -n $K8S_NAMESPACE
-    - kubectl rollout restart deployment/frontend -n $K8S_NAMESPACE
-
-    - kubectl rollout status deployment/api-server -n $K8S_NAMESPACE --timeout=300s
-    - kubectl rollout status deployment/frontend -n $K8S_NAMESPACE --timeout=300s
+    - kubectl rollout restart deployment/api-server --insecure-skip-tls-verify -n $K8S_NAMESPACE
+    - kubectl rollout restart deployment/frontend --insecure-skip-tls-verify -n $K8S_NAMESPACE
+    - kubectl rollout status deployment/api-server --insecure-skip-tls-verify -n $K8S_NAMESPACE --timeout=300s
+    - kubectl rollout status deployment/frontend   --insecure-skip-tls-verify -n $K8S_NAMESPACE --timeout=300s
