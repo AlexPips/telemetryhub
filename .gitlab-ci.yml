@@ -1,5 +1,11 @@
+
+include:
+  - template: Jobs/Container-Scanning.gitlab-ci.yml
+  
+
 stages:
   - build
+  - test
   - deploy
 
 build:
@@ -17,8 +23,64 @@ build:
     - docker build -f docker/api.Dockerfile -t $CI_REGISTRY_IMAGE/cardimedbackend:$CI_COMMIT_SHA ./backend
     - docker push $CI_REGISTRY_IMAGE/cardimedbackend:$CI_COMMIT_SHA
 
-  # rules:
-  #   - if: '$CI_COMMIT_BRANCH == "main"'
+
+container_scanning_backend:
+  allow_failure: false # force pipeline to fail if the job fails
+  variables:
+    CS_SEVERITY_THRESHOLD: "high" # low - include low-medium-high severity, medium include medium-high severity, high include high severity
+    SECURE_LOG_LEVEL: 'debug' # debug, info, warn, error, fatal
+  before_script:
+    - export CS_IMAGE="$CI_REGISTRY_IMAGE/cardimedbackend:$CI_COMMIT_SHA"
+  script:
+    - gtcs scan
+    - |
+      HIGH_COUNT=$(grep -o '"severity":"High"' gl-container-scanning-report.json | wc -l || true)
+      CRITICAL_COUNT=$(grep -o '"severity":"Critical"' gl-container-scanning-report.json | wc -l || true)
+
+      echo "========================================"
+      echo "Container Security Scan"
+      echo "========================================"
+      echo "High vulnerabilities:     $HIGH_COUNT"
+      echo "Critical vulnerabilities: $CRITICAL_COUNT"
+      echo "========================================"
+
+      if [ "$HIGH_COUNT" -gt 0 ] || [ "$CRITICAL_COUNT" -gt 0 ]; then
+        echo "ERROR: High or Critical vulnerabilities found."
+        echo "Pipeline will be stopped."
+        exit 1
+      else
+        echo "No High or Critical vulnerabilities found."
+        echo "Container is approved for deployment."
+      fi
+
+container_scanning_frontend:
+  allow_failure: false # force pipeline to fail if the job fails
+  variables:
+    CS_SEVERITY_THRESHOLD: "high" # low - include low-medium-high severity, medium include medium-high severity, high include high severity
+    SECURE_LOG_LEVEL: 'debug' # debug, info, warn, error, fatal
+  before_script:
+    - export CS_IMAGE="$CI_REGISTRY_IMAGE/cardimedfrontend:$CI_COMMIT_SHA"
+  script:
+    - gtcs scan
+    - |
+      HIGH_COUNT=$(grep -o '"severity":"High"' gl-container-scanning-report.json | wc -l || true)
+      CRITICAL_COUNT=$(grep -o '"severity":"Critical"' gl-container-scanning-report.json | wc -l || true)
+
+      echo "========================================"
+      echo "Container Security Scan"
+      echo "========================================"
+      echo "High vulnerabilities:     $HIGH_COUNT"
+      echo "Critical vulnerabilities: $CRITICAL_COUNT"
+      echo "========================================"
+
+      if [ "$HIGH_COUNT" -gt 0 ] || [ "$CRITICAL_COUNT" -gt 0 ]; then
+        echo "ERROR: High or Critical vulnerabilities found."
+        echo "Pipeline will be stopped."
+        exit 1
+      else
+        echo "No High or Critical vulnerabilities found."
+        echo "Container is approved for deployment."
+      fi
 
 deploy:
   stage: deploy
