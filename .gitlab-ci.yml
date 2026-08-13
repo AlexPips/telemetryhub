@@ -1,4 +1,3 @@
-
 include:
   - template: Jobs/Container-Scanning.gitlab-ci.yml
   
@@ -25,65 +24,74 @@ build:
 
 
 container_scanning_backend:
-  allow_failure: false # force pipeline to fail if the job fails
+  stage: test
+
+  image:
+    name: registry.gitlab.com/security-products/container-scanning:7
+    entrypoint: [""]
+
   variables:
-    CS_SEVERITY_THRESHOLD: "high" # low - include low-medium-high severity, medium include medium-high severity, high include high severity
-    SECURE_LOG_LEVEL: 'debug' # debug, info, warn, error, fatal
-  before_script:
-    - export CS_IMAGE="$CI_REGISTRY_IMAGE/cardimedbackend:$CI_COMMIT_SHA"
+    CS_IMAGE: "$CI_REGISTRY_IMAGE/cardimedbackend:$CI_COMMIT_SHA"
+    CS_SEVERITY_THRESHOLD: "high"
+    SECURE_LOG_LEVEL: "debug"
+
   script:
     - gtcs scan
     - |
       HIGH_COUNT=$(grep -o '"severity":"High"' gl-container-scanning-report.json | wc -l || true)
       CRITICAL_COUNT=$(grep -o '"severity":"Critical"' gl-container-scanning-report.json | wc -l || true)
 
-      echo "========================================"
-      echo "Container Security Scan"
-      echo "========================================"
-      echo "High vulnerabilities:     $HIGH_COUNT"
-      echo "Critical vulnerabilities: $CRITICAL_COUNT"
-      echo "========================================"
+      echo "High: $HIGH_COUNT"
+      echo "Critical: $CRITICAL_COUNT"
 
       if [ "$HIGH_COUNT" -gt 0 ] || [ "$CRITICAL_COUNT" -gt 0 ]; then
-        echo "ERROR: High or Critical vulnerabilities found."
-        echo "Pipeline will be stopped."
         exit 1
-      else
-        echo "No High or Critical vulnerabilities found."
-        echo "Container is approved for deployment."
       fi
+
+  artifacts:
+    reports:
+      container_scanning: gl-container-scanning-report.json
+
+  needs:
+    - build
 
 container_scanning_frontend:
-  allow_failure: false # force pipeline to fail if the job fails
+  stage: test
+
+  image:
+    name: registry.gitlab.com/security-products/container-scanning:7
+    entrypoint: [""]
+
   variables:
-    CS_SEVERITY_THRESHOLD: "high" # low - include low-medium-high severity, medium include medium-high severity, high include high severity
-    SECURE_LOG_LEVEL: 'debug' # debug, info, warn, error, fatal
-  before_script:
-    - export CS_IMAGE="$CI_REGISTRY_IMAGE/cardimedfrontend:$CI_COMMIT_SHA"
+    CS_IMAGE: "$CI_REGISTRY_IMAGE/cardimedfrontend:$CI_COMMIT_SHA"
+    CS_SEVERITY_THRESHOLD: "high"
+    SECURE_LOG_LEVEL: "debug"
+
   script:
     - gtcs scan
     - |
       HIGH_COUNT=$(grep -o '"severity":"High"' gl-container-scanning-report.json | wc -l || true)
       CRITICAL_COUNT=$(grep -o '"severity":"Critical"' gl-container-scanning-report.json | wc -l || true)
 
-      echo "========================================"
-      echo "Container Security Scan"
-      echo "========================================"
-      echo "High vulnerabilities:     $HIGH_COUNT"
-      echo "Critical vulnerabilities: $CRITICAL_COUNT"
-      echo "========================================"
+      echo "High: $HIGH_COUNT"
+      echo "Critical: $CRITICAL_COUNT"
 
       if [ "$HIGH_COUNT" -gt 0 ] || [ "$CRITICAL_COUNT" -gt 0 ]; then
-        echo "ERROR: High or Critical vulnerabilities found."
-        echo "Pipeline will be stopped."
         exit 1
-      else
-        echo "No High or Critical vulnerabilities found."
-        echo "Container is approved for deployment."
       fi
+
+  artifacts:
+    reports:
+      container_scanning: gl-container-scanning-report.json
+
+  needs:
+    - build
 
 deploy:
   stage: deploy
+  needs:
+  - container_scanning_backend
+  - container_scanning_frontend
   image:
     name: bitnami/kubectl:latest
     entrypoint: [""]
