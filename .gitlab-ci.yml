@@ -1,6 +1,14 @@
+include:
+  - template: Jobs/Container-Scanning.gitlab-ci.yml
+
 stages:
   - build
+  - test
   - deploy
+
+variables:
+  FRONTEND_IMAGE: "$CI_REGISTRY_IMAGE/cardimedfrontend:$CI_COMMIT_SHA"
+  BACKEND_IMAGE: "$CI_REGISTRY_IMAGE/cardimedbackend:$CI_COMMIT_SHA"
 
 build:
   stage: build
@@ -9,27 +17,92 @@ build:
     - name: docker:24-dind
       command: ["--tls=false"]
   script:
-
     - docker info
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
-    - docker build --build-arg NEXT_PUBLIC_API_URL=https://cardimed.192.168.1.50.nip.io/api/v1 -f docker/frontend.Dockerfile -t $CI_REGISTRY_IMAGE/cardimedfrontend:$CI_COMMIT_SHA ./frontend
-    - docker push $CI_REGISTRY_IMAGE/cardimedfrontend:$CI_COMMIT_SHA
-    - docker build -f docker/api.Dockerfile -t $CI_REGISTRY_IMAGE/cardimedbackend:$CI_COMMIT_SHA ./backend
-    - docker push $CI_REGISTRY_IMAGE/cardimedbackend:$CI_COMMIT_SHA
+    - docker build --build-arg NEXT_PUBLIC_API_URL=https://cardimed.192.168.1.50.nip.io/api/v1 -f docker/frontend.Dockerfile -t "$FRONTEND_IMAGE" ./frontend
+    - docker push "$FRONTEND_IMAGE"
+    - docker build -f docker/api.Dockerfile -t "$BACKEND_IMAGE" ./backend
+    - docker push "$BACKEND_IMAGE"
 
-  # rules:
-  #   - if: '$CI_COMMIT_BRANCH == "main"'
+# Disable the template's own auto-added job — it has no CS_IMAGE set and will
+# always fail looking for a nonexistent "dashboard/main:sha" image.
+container_scanning:
+  rules:
+    - when: never
+
+scan-frontend:
+  extends: container_scanning   # inherits image, base script, artifact paths from the template job
+  stage: test
+  needs: ["build"]
+  rules:
+    - when: on_success
+  variables:
+    CS_SEVERITY_THRESHOLD: "high"
+    SECURE_LOG_LEVEL: 'debug'
+  before_script:
+    - export CS_IMAGE="$FRONTEND_IMAGE"
+  script:
+    - gtcs scan
+    - |
+      HIGH_COUNT=$(grep -o '"severity":"High"' gl-container-scanning-report.json | wc -l || true)
+      CRITICAL_COUNT=$(grep -o '"severity":"Critical"' gl-container-scanning-report.json | wc -l || true)
+      echo "========================================"
+      echo "Container Security Scan - $CS_IMAGE"
+      echo "========================================"
+      echo "High vulnerabilities:     $HIGH_COUNT"
+      echo "Critical vulnerabilities: $CRITICAL_COUNT"
+      echo "========================================"
+      if [ "$HIGH_COUNT" -gt 0 ] || [ "$CRITICAL_COUNT" -gt 0 ]; then
+        echo "ERROR: High or Critical vulnerabilities found."
+        echo "Pipeline will be stopped."
+        exit 1
+      else
+        echo "No High or Critical vulnerabilities found."
+        echo "Container is approved for deployment."
+      fi
+
+scan-backend:
+  extends: container_scanning
+  stage: test
+  needs: ["build"]
+  rules:
+    - when: on_success
+  variables:
+    CS_SEVERITY_THRESHOLD: "high"
+    SECURE_LOG_LEVEL: 'debug'
+  before_script:
+    - export CS_IMAGE="$BACKEND_IMAGE"
+  script:
+    - gtcs scan
+    - |
+      HIGH_COUNT=$(grep -o '"severity":"High"' gl-container-scanning-report.json | wc -l || true)
+      CRITICAL_COUNT=$(grep -o '"severity":"Critical"' gl-container-scanning-report.json | wc -l || true)
+      echo "========================================"
+      echo "Container Security Scan - $CS_IMAGE"
+      echo "========================================"
+      echo "High vulnerabilities:     $HIGH_COUNT"
+      echo "Critical vulnerabilities: $CRITICAL_COUNT"
+      echo "========================================"
+      if [ "$HIGH_COUNT" -gt 0 ] || [ "$CRITICAL_COUNT" -gt 0 ]; then
+        echo "ERROR: High or Critical vulnerabilities found."
+        echo "Pipeline will be stopped."
+        exit 1
+      else
+        echo "No High or Critical vulnerabilities found."
+        echo "Container is approved for deployment."
+      fi
 
 deploy:
   stage: deploy
   image:
     name: bitnami/kubectl:latest
     entrypoint: [""]
-
   variables:
     IMAGE_TAG: $CI_COMMIT_SHA
     K8S_NAMESPACE: cardimed
-
+  needs:
+    - scan-frontend
+    - scan-backend
   script:
     - kubectl config use-context rd-devs/k8s-connecttion:rnddevs-k8s-connection
     - kubectl apply --validate=false --insecure-skip-tls-verify -f k8s/namespace.yaml
@@ -43,18 +116,13 @@ deploy:
         -n $K8S_NAMESPACE --insecure-skip-tls-verify
     - kubectl apply --validate=false --insecure-skip-tls-verify -f k8s/secrets.yaml
     - kubectl apply --validate=false --insecure-skip-tls-verify -f k8s/postgres.yaml
-
     - export IMAGE_TAG=$CI_COMMIT_SHA
     - envsubst < k8s/api.yaml      > /tmp/api.yaml
     - envsubst < k8s/frontend.yaml > /tmp/frontend.yaml
-
     - kubectl apply --validate=false --insecure-skip-tls-verify -f /tmp/api.yaml
     - kubectl apply --validate=false --insecure-skip-tls-verify -f /tmp/frontend.yaml
     - kubectl apply --validate=false --insecure-skip-tls-verify -f k8s/ingress.yaml
-
     - kubectl rollout restart deployment/api-server --insecure-skip-tls-verify -n $K8S_NAMESPACE
     - kubectl rollout restart deployment/frontend --insecure-skip-tls-verify -n $K8S_NAMESPACE
     - kubectl rollout status deployment/api-server --insecure-skip-tls-verify -n $K8S_NAMESPACE --timeout=300s
     - kubectl rollout status deployment/frontend   --insecure-skip-tls-verify -n $K8S_NAMESPACE --timeout=300s
-  # rules:
-  #   - if: '$CI_COMMIT_BRANCH == "main"'
