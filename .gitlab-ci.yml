@@ -24,11 +24,23 @@ build:
     - docker build -f docker/api.Dockerfile -t "$BACKEND_IMAGE" ./backend
     - docker push "$BACKEND_IMAGE"
 
-.container_scanning_base:
-  allow_failure: false
+# Disable the template's own auto-added job — it has no CS_IMAGE set and will
+# always fail looking for a nonexistent "dashboard/main:sha" image.
+container_scanning:
+  rules:
+    - when: never
+
+scan-frontend:
+  extends: container_scanning   # inherits image, base script, artifact paths from the template job
+  stage: test
+  needs: ["build"]
+  rules:
+    - when: on_success
   variables:
     CS_SEVERITY_THRESHOLD: "high"
     SECURE_LOG_LEVEL: 'debug'
+  before_script:
+    - export CS_IMAGE="$FRONTEND_IMAGE"
   script:
     - gtcs scan
     - |
@@ -49,19 +61,36 @@ build:
         echo "Container is approved for deployment."
       fi
 
-container_scanning_frontend:
-  extends: .container_scanning_base
+scan-backend:
+  extends: container_scanning
   stage: test
   needs: ["build"]
-  before_script:
-    - export CS_IMAGE="$FRONTEND_IMAGE"
-
-container_scanning_backend:
-  extends: .container_scanning_base
-  stage: test
-  needs: ["build"]
+  rules:
+    - when: on_success
+  variables:
+    CS_SEVERITY_THRESHOLD: "high"
+    SECURE_LOG_LEVEL: 'debug'
   before_script:
     - export CS_IMAGE="$BACKEND_IMAGE"
+  script:
+    - gtcs scan
+    - |
+      HIGH_COUNT=$(grep -o '"severity":"High"' gl-container-scanning-report.json | wc -l || true)
+      CRITICAL_COUNT=$(grep -o '"severity":"Critical"' gl-container-scanning-report.json | wc -l || true)
+      echo "========================================"
+      echo "Container Security Scan - $CS_IMAGE"
+      echo "========================================"
+      echo "High vulnerabilities:     $HIGH_COUNT"
+      echo "Critical vulnerabilities: $CRITICAL_COUNT"
+      echo "========================================"
+      if [ "$HIGH_COUNT" -gt 0 ] || [ "$CRITICAL_COUNT" -gt 0 ]; then
+        echo "ERROR: High or Critical vulnerabilities found."
+        echo "Pipeline will be stopped."
+        exit 1
+      else
+        echo "No High or Critical vulnerabilities found."
+        echo "Container is approved for deployment."
+      fi
 
 deploy:
   stage: deploy
@@ -72,8 +101,8 @@ deploy:
     IMAGE_TAG: $CI_COMMIT_SHA
     K8S_NAMESPACE: cardimed
   needs:
-    - container_scanning_frontend
-    - container_scanning_backend
+    - scan-frontend
+    - scan-backend
   script:
     - kubectl config use-context rd-devs/k8s-connecttion:rnddevs-k8s-connection
     - kubectl apply --validate=false --insecure-skip-tls-verify -f k8s/namespace.yaml
