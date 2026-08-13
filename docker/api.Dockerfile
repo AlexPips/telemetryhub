@@ -6,7 +6,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o api-server ./cmd/api-server/
 
-FROM alpine:3.19
+FROM alpine:3.21
 RUN apk --no-cache add ca-certificates tzdata
 COPY --from=builder /app/api-server /usr/local/bin/
 COPY migrations/ /app/migrations/
