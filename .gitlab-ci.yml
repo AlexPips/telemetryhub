@@ -9,7 +9,17 @@ stages:
 variables:
   FRONTEND_IMAGE: "$CI_REGISTRY_IMAGE/cardimedfrontend:$CI_COMMIT_SHA"
   BACKEND_IMAGE: "$CI_REGISTRY_IMAGE/cardimedbackend:$CI_COMMIT_SHA"
-  GIT_STRATEGY: fetch   # ensure Dockerfile is actually checked out for remediation
+  GIT_STRATEGY: fetch
+
+# --- One-off diagnostic job: run this once to confirm real paths, then remove it ---
+debug-repo-layout:
+  image: alpine:3.21
+  stage: build
+  script:
+    - echo "Repo root contents:"
+    - ls -la
+    - echo "Looking for Dockerfiles anywhere in repo:"
+    - find . -iname "Dockerfile*" -not -path "./.git/*"
 
 build-frontend:
   image: docker:24.0.2-cli
@@ -17,7 +27,8 @@ build-frontend:
   services:
     - docker:24.0.2-dind
   script:
-    - docker build --tag "$FRONTEND_IMAGE" --file dashboard/Dockerfile .
+    # TODO: confirm this path against debug-repo-layout output, e.g. "Dockerfile" if it's at repo root
+    - docker build --tag "$FRONTEND_IMAGE" --file Dockerfile .
     - docker login --username gitlab-ci-token --password "$CI_JOB_TOKEN" "$CI_REGISTRY"
     - docker push "$FRONTEND_IMAGE"
 
@@ -27,12 +38,14 @@ build-backend:
   services:
     - docker:24.0.2-dind
   script:
-    - docker build --tag "$BACKEND_IMAGE" --file backend/Dockerfile .
+    # TODO: confirm this path — if backend code lives in a different repo,
+    # this job needs its own checkout of that project instead of a subfolder here
+    - docker build --tag "$BACKEND_IMAGE" --file Dockerfile.backend .
     - docker login --username gitlab-ci-token --password "$CI_JOB_TOKEN" "$CI_REGISTRY"
     - docker push "$BACKEND_IMAGE"
 
 .container_scanning_base:
-  allow_failure: false # force pipeline to fail if the job fails
+  allow_failure: false
   variables:
     CS_SEVERITY_THRESHOLD: "high"
     SECURE_LOG_LEVEL: 'debug'
@@ -70,34 +83,21 @@ container_scanning_backend:
 
 deploy:
   stage: deploy
-  needs:
-    - container_scanning_frontend
-    - container_scanning_backend
-  script:
-    - echo "Deploying $FRONTEND_IMAGE and $BACKEND_IMAGE"
-
-deploy:
-  stage: deploy
-
   image:
     name: bitnami/kubectl:latest
     entrypoint: [""]
-
   variables:
     IMAGE_TAG: "$CI_COMMIT_SHA"
     K8S_NAMESPACE: "cardimed"
-
   needs:
     - container_scanning_backend
     - container_scanning_frontend
-
   script:
     - kubectl config use-context rd-devs/k8s-connecttion:rnddevs-k8s-connection
 
     - kubectl apply --validate=false --insecure-skip-tls-verify -f k8s/namespace.yaml
 
     - kubectl delete secret gitlab-registry -n $K8S_NAMESPACE --ignore-not-found --insecure-skip-tls-verify
-
     - |
       kubectl create secret docker-registry gitlab-registry \
         --docker-server="$CI_REGISTRY" \
@@ -109,14 +109,11 @@ deploy:
     - kubectl apply --validate=false --insecure-skip-tls-verify -f k8s/secrets.yaml
     - kubectl apply --validate=false --insecure-skip-tls-verify -f k8s/postgres.yaml
 
-    - export IMAGE_TAG=$CI_COMMIT_SHA
-
     - envsubst < k8s/api.yaml > /tmp/api.yaml
     - envsubst < k8s/frontend.yaml > /tmp/frontend.yaml
 
     - kubectl apply --validate=false --insecure-skip-tls-verify -f /tmp/api.yaml
     - kubectl apply --validate=false --insecure-skip-tls-verify -f /tmp/frontend.yaml
-
     - kubectl apply --validate=false --insecure-skip-tls-verify -f k8s/ingress.yaml
 
     - kubectl rollout restart deployment/api-server -n $K8S_NAMESPACE
