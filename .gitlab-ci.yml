@@ -66,8 +66,8 @@ scan-backend:
   extends: container_scanning
   stage: test
   needs: ["build"]
-  rules:
-    - when: on_success
+  # rules:
+  #   - when: on_success
   variables:
     CS_SEVERITY_THRESHOLD: "high"
     SECURE_LOG_LEVEL: 'debug'
