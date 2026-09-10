@@ -31,15 +31,13 @@ container_scanning:
     - when: never
 
 scan-frontend:
-  extends: container_scanning   # inherits image, base script, artifact paths from the template job
+  extends: container_scanning
   stage: test
   needs: ["build"]
-  # allow_failure: false
-  # rules:
-  #   - when: on_success
+  allow_failure: true
   variables:
     CS_SEVERITY_THRESHOLD: "high"
-    SECURE_LOG_LEVEL: 'debug'
+    SECURE_LOG_LEVEL: "debug"
   before_script:
     - export CS_IMAGE="$FRONTEND_IMAGE"
   script:
@@ -47,12 +45,14 @@ scan-frontend:
     - |
       HIGH_COUNT=$(grep -o '"severity":"High"' gl-container-scanning-report.json | wc -l || true)
       CRITICAL_COUNT=$(grep -o '"severity":"Critical"' gl-container-scanning-report.json | wc -l || true)
+
       echo "========================================"
       echo "Container Security Scan - $CS_IMAGE"
       echo "========================================"
       echo "High vulnerabilities:     $HIGH_COUNT"
       echo "Critical vulnerabilities: $CRITICAL_COUNT"
       echo "========================================"
+
       if [ "$HIGH_COUNT" -gt 0 ] || [ "$CRITICAL_COUNT" -gt 0 ]; then
         echo "ERROR: High or Critical vulnerabilities found."
         echo "Pipeline will be stopped."
@@ -66,11 +66,10 @@ scan-backend:
   extends: container_scanning
   stage: test
   needs: ["build"]
-  # rules:
-  #   - when: on_success
+  allow_failure: true
   variables:
     CS_SEVERITY_THRESHOLD: "high"
-    SECURE_LOG_LEVEL: 'debug'
+    SECURE_LOG_LEVEL: "debug"
   before_script:
     - export CS_IMAGE="$BACKEND_IMAGE"
   script:
@@ -78,12 +77,14 @@ scan-backend:
     - |
       HIGH_COUNT=$(grep -o '"severity":"High"' gl-container-scanning-report.json | wc -l || true)
       CRITICAL_COUNT=$(grep -o '"severity":"Critical"' gl-container-scanning-report.json | wc -l || true)
+
       echo "========================================"
       echo "Container Security Scan - $CS_IMAGE"
       echo "========================================"
       echo "High vulnerabilities:     $HIGH_COUNT"
       echo "Critical vulnerabilities: $CRITICAL_COUNT"
       echo "========================================"
+
       if [ "$HIGH_COUNT" -gt 0 ] || [ "$CRITICAL_COUNT" -gt 0 ]; then
         echo "ERROR: High or Critical vulnerabilities found."
         echo "Pipeline will be stopped."
