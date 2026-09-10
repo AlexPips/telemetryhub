@@ -35,6 +35,8 @@ scan-frontend:
   stage: test
   needs: ["build"]
   allow_failure: true
+  rules:
+    - when: on_success
   variables:
     CS_SEVERITY_THRESHOLD: "high"
     SECURE_LOG_LEVEL: "debug"
@@ -67,6 +69,8 @@ scan-backend:
   stage: test
   needs: ["build"]
   allow_failure: true
+  rules:
+    - when: on_success
   variables:
     CS_SEVERITY_THRESHOLD: "high"
     SECURE_LOG_LEVEL: "debug"
