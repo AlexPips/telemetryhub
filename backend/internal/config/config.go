@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"strconv"
+	"time"
 )
 
 // BrokerConfig defines connection parameters for a single MQTT broker.
@@ -62,6 +63,12 @@ type Config struct {
 	// Rate limit
 	RateLimitPerSec int
 
+	// Reading query timeout
+	ReadingsQueryTimeout time.Duration
+
+	// Readings response cache TTL
+	ReadingsCacheTTL time.Duration
+
 	// Admin seed
 	AdminEmail    string
 	AdminPassword string
@@ -104,6 +111,12 @@ func Load() *Config {
 
 		// Rate limit
 		RateLimitPerSec: getEnvInt("RATE_LIMIT_PER_SEC", 20),
+
+		// Reading query timeout (default 30s)
+		ReadingsQueryTimeout: time.Duration(getEnvInt("READINGS_QUERY_TIMEOUT_SECONDS", 30)) * time.Second,
+
+		// Readings response cache TTL (default 30s; 0 disables cache)
+		ReadingsCacheTTL: time.Duration(getEnvInt("READINGS_CACHE_TTL_SECONDS", 30)) * time.Second,
 
 		// Admin seed
 		AdminEmail:    getEnv("ADMIN_EMAIL", "admin@telemetryhub.local"),

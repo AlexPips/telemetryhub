@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -19,12 +20,17 @@ type ReadingsResponse struct {
 
 // ReadingHandler handles readings-related endpoints.
 type ReadingHandler struct {
-	store DeviceStore
+	store        DeviceStore
+	queryTimeout time.Duration
 }
 
 // NewReadingHandler creates a new reading handler.
-func NewReadingHandler(store DeviceStore) *ReadingHandler {
-	return &ReadingHandler{store: store}
+// queryTimeout <= 0 falls back to a 30s default.
+func NewReadingHandler(store DeviceStore, queryTimeout time.Duration) *ReadingHandler {
+	if queryTimeout <= 0 {
+		queryTimeout = 30 * time.Second
+	}
+	return &ReadingHandler{store: store, queryTimeout: queryTimeout}
 }
 
 // GetReadings     Get device readings
@@ -76,7 +82,9 @@ func (h *ReadingHandler) GetReadings(c echo.Context) error {
 	}
 
 	fieldList := splitFields(fields)
-	readings, err := h.store.GetReadings(c.Request().Context(), deviceID, fieldList, from, to)
+	ctx, cancel := context.WithTimeout(c.Request().Context(), h.queryTimeout)
+	defer cancel()
+	readings, err := h.store.GetReadings(ctx, deviceID, fieldList, from, to)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch readings"})
 	}

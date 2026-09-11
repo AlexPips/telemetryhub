@@ -59,7 +59,7 @@ func New(cfg *config.Config, pool *pgxpool.Pool, mqttMgr *mqtt.BrokerManager) (*
 
 	// Handlers
 	devH := handlers.NewDeviceHandler(store)
-	readH := handlers.NewReadingHandler(store)
+	readH := handlers.NewReadingHandler(store, cfg.ReadingsQueryTimeout)
 	renameH := handlers.NewRenameHandler(store)
 	devGroupH := handlers.NewDeviceGroupHandler(store)
 	exportH := handlers.NewExportHandler(store)
