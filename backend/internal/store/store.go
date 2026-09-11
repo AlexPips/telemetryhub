@@ -81,32 +81,6 @@ func (s *Store) InsertMessage(ctx context.Context, deviceID, brokerName string, 
 	return rawID, nil
 }
 
-// GetDevices returns all known devices.
-func (s *Store) GetDevices(ctx context.Context) ([]DeviceRow, error) {
-	rows, err := s.pool.Query(ctx, `
-		SELECT d.id, d.name, d.device_type, d.broker_name, d.first_seen, d.last_seen,
-		       COUNT(DISTINCT r.field_name) as field_count
-		FROM devices d
-		LEFT JOIN readings r ON r.device_id = d.id
-		GROUP BY d.id, d.name, d.device_type, d.broker_name, d.first_seen, d.last_seen
-		ORDER BY d.last_seen DESC
-	`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var devices []DeviceRow
-	for rows.Next() {
-		var d DeviceRow
-		if err := rows.Scan(&d.ID, &d.Name, &d.DeviceType, &d.BrokerName, &d.FirstSeen, &d.LastSeen, &d.FieldCount); err != nil {
-			return nil, err
-		}
-		devices = append(devices, d)
-	}
-	return devices, rows.Err()
-}
-
 // GetDeviceFields returns all distinct field names for a device.
 func (s *Store) GetDeviceFields(ctx context.Context, deviceID string) ([]string, error) {
 	rows, err := s.pool.Query(ctx, `
@@ -157,17 +131,6 @@ func (s *Store) GetReadings(ctx context.Context, deviceID string, fields []strin
 		results = append(results, r)
 	}
 	return results, rows.Err()
-}
-
-// DeviceRow represents a device with its field count.
-type DeviceRow struct {
-	ID         string    `json:"id"`
-	Name       string    `json:"name"`
-	DeviceType string    `json:"device_type"`
-	BrokerName string    `json:"broker_name"`
-	FirstSeen  time.Time `json:"first_seen"`
-	LastSeen   time.Time `json:"last_seen"`
-	FieldCount int       `json:"field_count"`
 }
 
 // ReadingResult represents a sensor reading with metadata.

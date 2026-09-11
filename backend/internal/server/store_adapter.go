@@ -24,14 +24,11 @@ func NewStoreAdapter(pool *pgxpool.Pool, cacheTTL time.Duration) *StoreAdapter {
 func (a *StoreAdapter) GetDevices(ctx context.Context) ([]handlers.DeviceRow, error) {
 	rows, err := a.pool.Query(ctx, `
 		SELECT d.id, d.name, d.device_type, d.first_seen, d.last_seen,
-		       COUNT(DISTINCT r.field_name) as field_count,
 		       COALESCE(d.broker_name, ''),
 		       d.group_id,
 		       dg.name
 		FROM devices d
-		LEFT JOIN readings r ON r.device_id = d.id
 		LEFT JOIN device_groups dg ON dg.id = d.group_id
-		GROUP BY d.id, d.name, d.device_type, d.first_seen, d.last_seen, d.broker_name, d.group_id, dg.name
 		ORDER BY d.last_seen DESC
 	`)
 	if err != nil {
@@ -42,7 +39,7 @@ func (a *StoreAdapter) GetDevices(ctx context.Context) ([]handlers.DeviceRow, er
 	var devices []handlers.DeviceRow
 	for rows.Next() {
 		var d handlers.DeviceRow
-		if err := rows.Scan(&d.ID, &d.Name, &d.DeviceType, &d.FirstSeen, &d.LastSeen, &d.FieldCount, &d.BrokerName, &d.GroupID, &d.GroupName); err != nil {
+		if err := rows.Scan(&d.ID, &d.Name, &d.DeviceType, &d.FirstSeen, &d.LastSeen, &d.BrokerName, &d.GroupID, &d.GroupName); err != nil {
 			return nil, err
 		}
 		devices = append(devices, d)

@@ -356,7 +356,7 @@ export default function DeviceDetailPage() {
           <span className="text-border">|</span>
           <span className="font-medium text-foreground/80">Broker: <span className="text-muted-foreground">{device.broker_name || '—'}</span></span>
           <span className="text-border">|</span>
-          <span className="font-medium text-foreground/80">Fields: <span className="text-muted-foreground">{device.field_count}</span></span>
+          <span className="font-medium text-foreground/80">Fields: <span className="text-muted-foreground">{fields.length}</span></span>
         </div>
       )}
 

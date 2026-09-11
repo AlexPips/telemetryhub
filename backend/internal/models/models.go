@@ -76,6 +76,5 @@ type ReadingWithMeta struct {
 // DeviceWithFields extends Device with its known field names.
 type DeviceWithFields struct {
 	Device
-	FieldCount int      `json:"field_count"`
-	Fields     []string `json:"fields,omitempty"`
+	Fields []string `json:"fields,omitempty"`
 }

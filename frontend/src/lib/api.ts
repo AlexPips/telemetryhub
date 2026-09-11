@@ -6,7 +6,6 @@ export interface Device {
   device_type: string;
   first_seen: string;
   last_seen: string;
-  field_count: number;
   broker_name: string;
   group_id?: number;
   group_name?: string;
