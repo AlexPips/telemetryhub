@@ -40,19 +40,9 @@ func (h *Handler) HandleMessage(deviceID string, rawPayload []byte) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := h.store.EnsureDevice(ctx, deviceID, h.brokerName); err != nil {
-		return fmt.Errorf("ensure device: %w", err)
-	}
-	rawID, err := h.store.InsertRawPayload(ctx, deviceID, rawPayload)
-	if err != nil {
-		return fmt.Errorf("insert raw payload: %w", err)
-	}
-
-	readings := extractReadings(deviceID, payload, rawID)
-	if len(readings) > 0 {
-		if err := h.store.InsertReadings(ctx, readings); err != nil {
-			return fmt.Errorf("insert readings: %w", err)
-		}
+	readings := extractReadings(deviceID, payload)
+	if _, err := h.store.InsertMessage(ctx, deviceID, h.brokerName, rawPayload, readings); err != nil {
+		return fmt.Errorf("insert message: %w", err)
 	}
 
 	return nil
@@ -70,7 +60,7 @@ func isMetadataOnly(payload map[string]interface{}) bool {
 	return true
 }
 
-func extractReadings(deviceID string, payload map[string]interface{}, rawPayloadID int64) []storepkg.ReadingRow {
+func extractReadings(deviceID string, payload map[string]interface{}) []storepkg.ReadingRow {
 	now := time.Now().UTC()
 	flat := make(map[string]float64)
 	flattenJSON("", payload, flat)
@@ -78,11 +68,10 @@ func extractReadings(deviceID string, payload map[string]interface{}, rawPayload
 	var readings []storepkg.ReadingRow
 	for field, value := range flat {
 		readings = append(readings, storepkg.ReadingRow{
-			Ts:           now,
-			DeviceID:     deviceID,
-			FieldName:    field,
-			Value:        value,
-			RawPayloadID: rawPayloadID,
+			Ts:        now,
+			DeviceID:  deviceID,
+			FieldName: field,
+			Value:     value,
 		})
 	}
 	return readings

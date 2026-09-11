@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"golang.org/x/time/rate"
 
 	"telemetryhub/internal/auth"
 	"telemetryhub/internal/config"
@@ -55,7 +56,7 @@ func New(cfg *config.Config, pool *pgxpool.Pool, mqttMgr *mqtt.BrokerManager) (*
 	authH := auth.NewHandler(pool, cfg.JWTSecret, cfg.SessionExpiry)
 
 	// Store adapter for handlers
-	store := NewStoreAdapter(pool)
+	store := NewStoreAdapter(pool, cfg.ReadingsCacheTTL)
 
 	// Handlers
 	devH := handlers.NewDeviceHandler(store)
@@ -105,7 +106,7 @@ func (s *Server) setupRoutes() {
 	authGroup.GET("/devices", s.devH.ListDevices)
 	authGroup.GET("/devices/:id", s.devH.GetDevice)
 	authGroup.GET("/devices/:id/fields", s.devH.GetDeviceFields)
-	authGroup.GET("/devices/:id/readings", s.readH.GetReadings)
+	authGroup.GET("/devices/:id/readings", s.readH.GetReadings, readingsRateLimiter(s.cfg.RateLimitPerSec))
 
 	// Admin endpoints (admin only)
 	adminGroup := authGroup.Group("", ocmw.RequireRole("admin"))
@@ -193,6 +194,28 @@ func (s *Server) listBrokers(c echo.Context) error {
 }
 
 var startTime = time.Now()
+
+// readingsRateLimiter returns a per-user rate limiter for the readings
+// endpoint. perSec <= 0 disables limiting (used with RATE_LIMIT_PER_SEC=0).
+func readingsRateLimiter(perSec int) echo.MiddlewareFunc {
+	if perSec <= 0 {
+		return func(next echo.HandlerFunc) echo.HandlerFunc {
+			return func(c echo.Context) error { return next(c) }
+		}
+	}
+	return middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
+		Store: middleware.NewRateLimiterMemoryStore(rate.Limit(perSec)),
+		IdentifierExtractor: func(c echo.Context) (string, error) {
+			if id, ok := c.Get("user_id").(int64); ok {
+				return fmt.Sprintf("user-%d", id), nil
+			}
+			return c.RealIP(), nil
+		},
+		ErrorHandler: func(c echo.Context, err error) error {
+			return c.JSON(http.StatusTooManyRequests, map[string]string{"error": "Rate limit exceeded"})
+		},
+	})
+}
 
 // SeedAdmin creates an admin user if one doesn't exist.
 func SeedAdmin(pool *pgxpool.Pool, email, password string) error {

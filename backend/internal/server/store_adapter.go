@@ -12,12 +12,13 @@ import (
 
 // StoreAdapter adapts pgxpool.Pool to the store interface expected by handlers.
 type StoreAdapter struct {
-	pool *pgxpool.Pool
+	pool  *pgxpool.Pool
+	cache *readingsCache
 }
 
-// NewStoreAdapter creates a new store adapter.
-func NewStoreAdapter(pool *pgxpool.Pool) *StoreAdapter {
-	return &StoreAdapter{pool: pool}
+// NewStoreAdapter creates a new store adapter. cacheTTL of 0 disables caching.
+func NewStoreAdapter(pool *pgxpool.Pool, cacheTTL time.Duration) *StoreAdapter {
+	return &StoreAdapter{pool: pool, cache: newReadingsCache(cacheTTL, readingsCacheMaxEntries)}
 }
 
 func (a *StoreAdapter) GetDevices(ctx context.Context) ([]handlers.DeviceRow, error) {
@@ -118,6 +119,22 @@ func (a *StoreAdapter) DeleteDeviceField(ctx context.Context, deviceID, fieldNam
 }
 
 func (a *StoreAdapter) GetReadings(ctx context.Context, deviceID string, fields []string, from, to time.Time) ([]handlers.ReadingResult, error) {
+	if a.cache != nil {
+		k := a.cache.key(deviceID, fields, from, to)
+		if results, ok := a.cache.get(k); ok {
+			return results, nil
+		}
+		results, err := a.queryReadings(ctx, deviceID, fields, from, to)
+		if err != nil {
+			return nil, err
+		}
+		a.cache.set(k, results)
+		return results, nil
+	}
+	return a.queryReadings(ctx, deviceID, fields, from, to)
+}
+
+func (a *StoreAdapter) queryReadings(ctx context.Context, deviceID string, fields []string, from, to time.Time) ([]handlers.ReadingResult, error) {
 	duration := to.Sub(from)
 	var bucketInterval string
 	switch {
