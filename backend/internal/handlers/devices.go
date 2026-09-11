@@ -36,6 +36,8 @@ type ReadingResult struct {
 	DisplayName string    `json:"display_name"`
 	Unit        string    `json:"unit"`
 	Value       float64   `json:"value"`
+	MinValue    float64   `json:"min_value"`
+	MaxValue    float64   `json:"max_value"`
 }
 
 // FieldRename represents a field rename configuration.

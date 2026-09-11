@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -117,17 +118,31 @@ func (a *StoreAdapter) DeleteDeviceField(ctx context.Context, deviceID, fieldNam
 }
 
 func (a *StoreAdapter) GetReadings(ctx context.Context, deviceID string, fields []string, from, to time.Time) ([]handlers.ReadingResult, error) {
-	rows, err := a.pool.Query(ctx, `
-		SELECT r.ts as bucket, r.field_name,
-		       r.value as value,
+	duration := to.Sub(from)
+	var bucketInterval string
+	switch {
+	case duration < 24*time.Hour:
+		bucketInterval = "15 minutes"
+	case duration < 7*24*time.Hour:
+		bucketInterval = "1 hour"
+	default:
+		bucketInterval = "1 day"
+	}
+
+	rows, err := a.pool.Query(ctx, fmt.Sprintf(`
+		SELECT time_bucket('%s', r.ts) as bucket, r.field_name,
+		       AVG(r.value) as value,
+		       MIN(r.value) as min_value,
+		       MAX(r.value) as max_value,
 		       COALESCE(fr.display_name, r.field_name) as display_name,
 		       COALESCE(fr.unit, '') as unit
 		FROM readings r
 		LEFT JOIN field_renames fr ON fr.device_id = r.device_id AND fr.raw_field = r.field_name
 		WHERE r.device_id = $1 AND r.field_name = ANY($2)
 		  AND r.ts > $3 AND r.ts < $4
-		ORDER BY r.ts
-	`, deviceID, fields, from, to)
+		GROUP BY bucket, r.field_name, fr.display_name, fr.unit
+		ORDER BY bucket, r.field_name
+	`, bucketInterval), deviceID, fields, from, to)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +151,7 @@ func (a *StoreAdapter) GetReadings(ctx context.Context, deviceID string, fields 
 	var results []handlers.ReadingResult
 	for rows.Next() {
 		var r handlers.ReadingResult
-		if err := rows.Scan(&r.Bucket, &r.FieldName, &r.Value, &r.DisplayName, &r.Unit); err != nil {
+		if err := rows.Scan(&r.Bucket, &r.FieldName, &r.Value, &r.MinValue, &r.MaxValue, &r.DisplayName, &r.Unit); err != nil {
 			return nil, err
 		}
 		results = append(results, r)
