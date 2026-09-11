@@ -6,7 +6,6 @@ export interface Device {
   device_type: string;
   first_seen: string;
   last_seen: string;
-  field_count: number;
   broker_name: string;
   group_id?: number;
   group_name?: string;
@@ -25,6 +24,8 @@ export interface ReadingData {
   display_name: string;
   unit: string;
   value: number;
+  min_value: number;
+  max_value: number;
 }
 
 export interface FieldRename {
@@ -274,4 +275,28 @@ export async function setDeviceGroup(deviceId: string, groupId: number | null): 
     body: JSON.stringify({ group_id: groupId }),
   });
   if (!res.ok) throw new Error('Failed to set device group');
+}
+
+export async function exportDeviceData(
+  deviceId: string,
+  fields: string[],
+  from: string,
+  to: string,
+  format: 'csv' | 'json'
+): Promise<Blob> {
+  const params = new URLSearchParams({
+    fields: fields.join(','),
+    from,
+    to,
+    format,
+  });
+  const res = await fetch(
+    `${API_URL}/devices/${encodeURIComponent(deviceId)}/export?${params}`,
+    { headers: getHeaders() }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Export failed' }));
+    throw new Error(err.error || 'Export failed');
+  }
+  return res.blob();
 }

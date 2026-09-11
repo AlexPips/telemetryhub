@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestLoad_Defaults(t *testing.T) {
@@ -13,6 +14,8 @@ func TestLoad_Defaults(t *testing.T) {
 	os.Unsetenv("MQTT_PASSWORD")
 	os.Unsetenv("MQTT_BROKERS")
 	os.Unsetenv("JWT_SECRET")
+	os.Unsetenv("READINGS_QUERY_TIMEOUT_SECONDS")
+	os.Unsetenv("READINGS_CACHE_TTL_SECONDS")
 
 	cfg := Load()
 
@@ -42,6 +45,12 @@ func TestLoad_Defaults(t *testing.T) {
 	}
 	if cfg.RateLimitPerSec != 20 {
 		t.Errorf("RateLimitPerSec = %d, want 20", cfg.RateLimitPerSec)
+	}
+	if cfg.ReadingsQueryTimeout != 30*time.Second {
+		t.Errorf("ReadingsQueryTimeout = %v, want 30s", cfg.ReadingsQueryTimeout)
+	}
+	if cfg.ReadingsCacheTTL != 30*time.Second {
+		t.Errorf("ReadingsCacheTTL = %v, want 30s", cfg.ReadingsCacheTTL)
 	}
 	if len(cfg.Brokers) != 0 {
 		t.Errorf("Brokers = %d, want 0 when no MQTT configured", len(cfg.Brokers))

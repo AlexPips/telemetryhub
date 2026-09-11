@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -11,25 +12,23 @@ import (
 
 // StoreAdapter adapts pgxpool.Pool to the store interface expected by handlers.
 type StoreAdapter struct {
-	pool *pgxpool.Pool
+	pool  *pgxpool.Pool
+	cache *readingsCache
 }
 
-// NewStoreAdapter creates a new store adapter.
-func NewStoreAdapter(pool *pgxpool.Pool) *StoreAdapter {
-	return &StoreAdapter{pool: pool}
+// NewStoreAdapter creates a new store adapter. cacheTTL of 0 disables caching.
+func NewStoreAdapter(pool *pgxpool.Pool, cacheTTL time.Duration) *StoreAdapter {
+	return &StoreAdapter{pool: pool, cache: newReadingsCache(cacheTTL, readingsCacheMaxEntries)}
 }
 
 func (a *StoreAdapter) GetDevices(ctx context.Context) ([]handlers.DeviceRow, error) {
 	rows, err := a.pool.Query(ctx, `
 		SELECT d.id, d.name, d.device_type, d.first_seen, d.last_seen,
-		       COUNT(DISTINCT r.field_name) as field_count,
 		       COALESCE(d.broker_name, ''),
 		       d.group_id,
 		       dg.name
 		FROM devices d
-		LEFT JOIN readings r ON r.device_id = d.id
 		LEFT JOIN device_groups dg ON dg.id = d.group_id
-		GROUP BY d.id, d.name, d.device_type, d.first_seen, d.last_seen, d.broker_name, d.group_id, dg.name
 		ORDER BY d.last_seen DESC
 	`)
 	if err != nil {
@@ -40,7 +39,7 @@ func (a *StoreAdapter) GetDevices(ctx context.Context) ([]handlers.DeviceRow, er
 	var devices []handlers.DeviceRow
 	for rows.Next() {
 		var d handlers.DeviceRow
-		if err := rows.Scan(&d.ID, &d.Name, &d.DeviceType, &d.FirstSeen, &d.LastSeen, &d.FieldCount, &d.BrokerName, &d.GroupID, &d.GroupName); err != nil {
+		if err := rows.Scan(&d.ID, &d.Name, &d.DeviceType, &d.FirstSeen, &d.LastSeen, &d.BrokerName, &d.GroupID, &d.GroupName); err != nil {
 			return nil, err
 		}
 		devices = append(devices, d)
@@ -117,6 +116,74 @@ func (a *StoreAdapter) DeleteDeviceField(ctx context.Context, deviceID, fieldNam
 }
 
 func (a *StoreAdapter) GetReadings(ctx context.Context, deviceID string, fields []string, from, to time.Time) ([]handlers.ReadingResult, error) {
+	if a.cache != nil {
+		k := a.cache.key(deviceID, fields, from, to)
+		if results, ok := a.cache.get(k); ok {
+			return results, nil
+		}
+		results, err := a.queryReadings(ctx, deviceID, fields, from, to)
+		if err != nil {
+			return nil, err
+		}
+		a.cache.set(k, results)
+		return results, nil
+	}
+	return a.queryReadings(ctx, deviceID, fields, from, to)
+}
+
+func (a *StoreAdapter) queryReadings(ctx context.Context, deviceID string, fields []string, from, to time.Time) ([]handlers.ReadingResult, error) {
+	duration := to.Sub(from)
+	var bucketInterval string
+	switch {
+	case duration < 24*time.Hour:
+		bucketInterval = "15 minutes"
+	case duration < 7*24*time.Hour:
+		bucketInterval = "1 hour"
+	default:
+		bucketInterval = "1 day"
+	}
+
+	rows, err := a.pool.Query(ctx, fmt.Sprintf(`
+		SELECT time_bucket('%s', r.ts) as bucket, r.field_name,
+		       AVG(r.value) as value,
+		       MIN(r.value) as min_value,
+		       MAX(r.value) as max_value,
+		       COALESCE(fr.display_name, r.field_name) as display_name,
+		       COALESCE(fr.unit, '') as unit
+		FROM readings r
+		LEFT JOIN field_renames fr ON fr.device_id = r.device_id AND fr.raw_field = r.field_name
+		WHERE r.device_id = $1 AND r.field_name = ANY($2)
+		  AND r.ts > $3 AND r.ts < $4
+		GROUP BY bucket, r.field_name, fr.display_name, fr.unit
+		ORDER BY bucket, r.field_name
+	`, bucketInterval), deviceID, fields, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []handlers.ReadingResult
+	for rows.Next() {
+		var r handlers.ReadingResult
+		if err := rows.Scan(&r.Bucket, &r.FieldName, &r.Value, &r.MinValue, &r.MaxValue, &r.DisplayName, &r.Unit); err != nil {
+			return nil, err
+		}
+		results = append(results, r)
+	}
+	return results, rows.Err()
+}
+
+func (a *StoreAdapter) CountReadings(ctx context.Context, deviceID string, fields []string, from, to time.Time) (int64, error) {
+	var count int64
+	err := a.pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM readings
+		WHERE device_id = $1 AND field_name = ANY($2)
+		  AND ts > $3 AND ts < $4
+	`, deviceID, fields, from, to).Scan(&count)
+	return count, err
+}
+
+func (a *StoreAdapter) StreamReadings(ctx context.Context, deviceID string, fields []string, from, to time.Time, fn func(handlers.ReadingResult) error) error {
 	rows, err := a.pool.Query(ctx, `
 		SELECT r.ts as bucket, r.field_name,
 		       r.value as value,
@@ -126,22 +193,23 @@ func (a *StoreAdapter) GetReadings(ctx context.Context, deviceID string, fields 
 		LEFT JOIN field_renames fr ON fr.device_id = r.device_id AND fr.raw_field = r.field_name
 		WHERE r.device_id = $1 AND r.field_name = ANY($2)
 		  AND r.ts > $3 AND r.ts < $4
-		ORDER BY r.ts
+		ORDER BY r.ts, r.field_name
 	`, deviceID, fields, from, to)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer rows.Close()
 
-	var results []handlers.ReadingResult
 	for rows.Next() {
 		var r handlers.ReadingResult
 		if err := rows.Scan(&r.Bucket, &r.FieldName, &r.Value, &r.DisplayName, &r.Unit); err != nil {
-			return nil, err
+			return err
 		}
-		results = append(results, r)
+		if err := fn(r); err != nil {
+			return err
+		}
 	}
-	return results, rows.Err()
+	return rows.Err()
 }
 
 func (a *StoreAdapter) ListRenames(ctx context.Context, deviceID string) ([]handlers.FieldRename, error) {
@@ -266,3 +334,5 @@ func (a *StoreAdapter) SetDeviceGroup(ctx context.Context, deviceID string, grou
 	_, err := a.pool.Exec(ctx, `UPDATE devices SET group_id = $2 WHERE id = $1`, deviceID, groupID)
 	return err
 }
+
+var _ handlers.ExportStore = (*StoreAdapter)(nil)

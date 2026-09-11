@@ -356,7 +356,7 @@ export default function DeviceDetailPage() {
           <span className="text-border">|</span>
           <span className="font-medium text-foreground/80">Broker: <span className="text-muted-foreground">{device.broker_name || '—'}</span></span>
           <span className="text-border">|</span>
-          <span className="font-medium text-foreground/80">Fields: <span className="text-muted-foreground">{device.field_count}</span></span>
+          <span className="font-medium text-foreground/80">Fields: <span className="text-muted-foreground">{fields.length}</span></span>
         </div>
       )}
 
@@ -429,6 +429,7 @@ export default function DeviceDetailPage() {
                   fields={sg.fields}
                   readings={readings}
                   renames={renames}
+                  timeRange={timeRange}
                   resetTrigger={resetAllCounter}
                 />
               ))}
@@ -440,6 +441,7 @@ export default function DeviceDetailPage() {
                   readings={readings}
                   displayName={`${group.groupName} – ${getDisplayName(field)}`}
                   unit={getUnit(field)}
+                  timeRange={timeRange}
                   resetTrigger={resetAllCounter}
                 />
               ))}
@@ -453,6 +455,7 @@ export default function DeviceDetailPage() {
               readings={readings}
               displayName={getDisplayName(field)}
               unit={getUnit(field)}
+              timeRange={timeRange}
               resetTrigger={resetAllCounter}
             />
           ))}
@@ -480,6 +483,7 @@ function FieldChart({
   readings,
   displayName,
   unit,
+  timeRange,
   resetTrigger,
 }: {
   field: string;
@@ -487,6 +491,7 @@ function FieldChart({
   readings: ReadingData[];
   displayName: string;
   unit: string;
+  timeRange: string;
   resetTrigger?: number;
 }) {
   const allFieldData = useMemo(() => readings.filter((r) => r.field_name === field), [readings, field]);
@@ -645,15 +650,24 @@ function FieldChart({
               legend: { display: false },
               tooltip: {
                 callbacks: {
+                  title: function (contexts) {
+                    if (!contexts.length) return '';
+                    const raw = contexts[0].raw as { x: Date; y: number };
+                    const date = new Date(raw.x);
+                    const showTime = timeRange === '1h' || timeRange === '6h' || timeRange === '24h';
+                    return showTime
+                      ? `${date.getMonth() + 1}/${date.getDate()}, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+                      : `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+                  },
                   label: function (context) {
-                    let label = context.dataset.label || '';
-                    if (label) label += ': ';
+                    const idx = context.dataIndex;
+                    const item = allFieldData[idx];
+                    if (!item) return '';
                     const val = context.parsed.y;
-                    if (val !== null) {
-                      label += val.toFixed(1);
-                      if (unit) label += ' ' + unit;
-                    }
-                    return label;
+                    const lines = [`${displayName}: ${val !== null ? val.toFixed(1) : 'N/A'}${unit ? ' ' + unit : ''}`];
+                    lines.push(`  Max: ${item.max_value.toFixed(1)}${unit ? ' ' + unit : ''}`);
+                    lines.push(`  Min: ${item.min_value.toFixed(1)}${unit ? ' ' + unit : ''}`);
+                    return lines;
                   },
                 },
               },
@@ -694,6 +708,7 @@ function GroupChart({
   fields,
   readings,
   renames,
+  timeRange,
   resetTrigger,
 }: {
   groupName: string;
@@ -703,6 +718,7 @@ function GroupChart({
   fields: string[];
   readings: ReadingData[];
   renames: FieldRename[];
+  timeRange: string;
   resetTrigger?: number;
 }) {
   const isMobile = useIsMobile();
@@ -901,19 +917,30 @@ function GroupChart({
               },
               tooltip: {
                 callbacks: {
+                  title: function (contexts) {
+                    if (!contexts.length) return '';
+                    const raw = contexts[0].raw as { x: Date; y: number };
+                    const date = new Date(raw.x);
+                    const showTime = timeRange === '1h' || timeRange === '6h' || timeRange === '24h';
+                    return showTime
+                      ? `${date.getMonth() + 1}/${date.getDate()}, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+                      : `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+                  },
                   label: function (context) {
-                    let label = context.dataset.label || '';
-                    if (label) label += ': ';
+                    const dsIndex = context.datasetIndex;
+                    if (dsIndex === undefined || dsIndex >= fields.length) return '';
+                    const field = fields[dsIndex];
+                    const label = fieldLabel(field);
                     const val = context.parsed.y;
-                    if (val !== null) {
-                      label += val.toFixed(1);
-                      const dsIndex = context.datasetIndex;
-                      if (dsIndex !== undefined && dsIndex < fields.length) {
-                        const unit = fieldLabel(fields[dsIndex]).unit;
-                        if (unit) label += ' ' + unit;
-                      }
+                    const allData = readings.filter((r) => r.field_name === field);
+                    const idx = context.dataIndex;
+                    const item = allData[idx];
+                    const lines = [`${label.displayName}: ${val !== null ? val.toFixed(1) : 'N/A'}${label.unit ? ' ' + label.unit : ''}`];
+                    if (item) {
+                      lines.push(`  Max: ${item.max_value.toFixed(1)}${label.unit ? ' ' + label.unit : ''}`);
+                      lines.push(`  Min: ${item.min_value.toFixed(1)}${label.unit ? ' ' + label.unit : ''}`);
                     }
-                    return label;
+                    return lines;
                   },
                 },
               },

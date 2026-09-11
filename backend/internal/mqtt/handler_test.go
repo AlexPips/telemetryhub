@@ -128,16 +128,13 @@ func TestExtractReadingsShelly(t *testing.T) {
 		},
 	}
 
-	readings := extractReadings("7D707D", payload, 42)
+	readings := extractReadings("7D707D", payload)
 	if len(readings) == 0 {
 		t.Fatal("expected readings, got 0")
 	}
 
 	if readings[0].DeviceID != "7D707D" {
 		t.Errorf("DeviceID = %q, want 7D707D", readings[0].DeviceID)
-	}
-	if readings[0].RawPayloadID != 42 {
-		t.Errorf("RawPayloadID = %d, want 42", readings[0].RawPayloadID)
 	}
 	if readings[0].Ts.IsZero() {
 		t.Error("Ts must be set")
@@ -183,9 +180,87 @@ func TestExtractReadingsFlatCARDIMED(t *testing.T) {
 		"hum": 60.0,
 		"co2": 415.0,
 	}
-	readings := extractReadings("467066", payload, 7)
+	readings := extractReadings("467066", payload)
 	if len(readings) != 3 {
 		t.Errorf("got %d readings, want 3", len(readings))
+	}
+}
+
+func TestExtractReadings_FlattensNestedJSON(t *testing.T) {
+	payload := map[string]interface{}{
+		"temp":   24.5,
+		"params": map[string]interface{}{
+			"humidity": 55.2,
+			"pressure": map[string]interface{}{"value": 1013.1},
+		},
+	}
+	readings := extractReadings("7D707D", payload)
+	if len(readings) != 3 {
+		t.Fatalf("got %d readings, want 3: %+v", len(readings), readings)
+	}
+	byField := map[string]float64{}
+	for _, r := range readings {
+		byField[r.FieldName] = r.Value
+	}
+	if byField["temp"] != 24.5 {
+		t.Errorf("temp = %v, want 24.5", byField["temp"])
+	}
+	if byField["params.humidity"] != 55.2 {
+		t.Errorf("params.humidity = %v, want 55.2", byField["params.humidity"])
+	}
+	if byField["params.pressure.value"] != 1013.1 {
+		t.Errorf("params.pressure.value = %v, want 1013.1", byField["params.pressure.value"])
+	}
+	for _, r := range readings {
+		if r.DeviceID != "7D707D" {
+			t.Errorf("device_id = %q, want 7D707D", r.DeviceID)
+		}
+	}
+}
+
+func TestExtractReadings_SkipsMetadataKeys(t *testing.T) {
+	payload := map[string]interface{}{
+		"src":     "sender-1",
+		"dst":     "dest-1",
+		"method":  "POST",
+		"id":      42.0,
+		"ts":      1234567890.0,
+		"time":    "2026-09-11T10:00:00Z",
+		"temp":    24.5,
+		"params":  map[string]interface{}{"ts": 1.0, "real": 2.0},
+	}
+	readings := extractReadings("7D707D", payload)
+	byField := map[string]float64{}
+	for _, r := range readings {
+		byField[r.FieldName] = r.Value
+	}
+	if len(byField) != 2 {
+		t.Fatalf("got fields %v, want exactly temp and params.real", byField)
+	}
+	if _, ok := byField["src"]; ok {
+		t.Error("metadata key 'src' should be skipped")
+	}
+	if _, ok := byField["params.ts"]; ok {
+		t.Error("nested metadata key 'params.ts' should be skipped")
+	}
+}
+
+func TestExtractReadings_BoolToValue(t *testing.T) {
+	payload := map[string]interface{}{
+		"switch": true,
+		"other":  false,
+		"temp":   25.0,
+	}
+	readings := extractReadings("7D707D", payload)
+	byField := map[string]float64{}
+	for _, r := range readings {
+		byField[r.FieldName] = r.Value
+	}
+	if byField["switch"] != 1.0 {
+		t.Errorf("switch = %v, want 1.0", byField["switch"])
+	}
+	if byField["other"] != 0.0 {
+		t.Errorf("other = %v, want 0.0", byField["other"])
 	}
 }
 
@@ -194,7 +269,7 @@ func TestExtractReadingsEmpty(t *testing.T) {
 		"src":    "device",
 		"method": "NotifyStatus",
 	}
-	readings := extractReadings("7D707D", payload, 1)
+	readings := extractReadings("7D707D", payload)
 	if len(readings) != 0 {
 		t.Errorf("metadata-only payload should yield 0 readings, got %d", len(readings))
 	}

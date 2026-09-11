@@ -9,14 +9,13 @@ import (
 	_ "telemetryhub/internal/auth"
 )
 
-// DeviceRow represents a device with its field count and broker attribution.
+// DeviceRow represents a device with broker attribution and optional group.
 type DeviceRow struct {
 	ID         string    `json:"id"`
 	Name       string    `json:"name"`
 	DeviceType string    `json:"device_type"`
 	FirstSeen  time.Time `json:"first_seen"`
 	LastSeen   time.Time `json:"last_seen"`
-	FieldCount int       `json:"field_count"`
 	BrokerName string    `json:"broker_name"`
 	GroupID    *int      `json:"group_id,omitempty"`
 	GroupName  *string   `json:"group_name,omitempty"`
@@ -36,6 +35,8 @@ type ReadingResult struct {
 	DisplayName string    `json:"display_name"`
 	Unit        string    `json:"unit"`
 	Value       float64   `json:"value"`
+	MinValue    float64   `json:"min_value"`
+	MaxValue    float64   `json:"max_value"`
 }
 
 // FieldRename represents a field rename configuration.
@@ -92,7 +93,7 @@ func NewDeviceHandler(store DeviceStore) *DeviceHandler {
 
 // ListDevices     List all devices
 // @Summary      List devices
-// @Description  Returns all known MQTT devices with field counts, ordered by last seen descending.
+// @Description  Returns all known MQTT devices, ordered by last seen descending.
 // @Tags         devices
 // @Produce      json
 // @Security     BearerAuth

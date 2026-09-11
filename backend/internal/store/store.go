@@ -28,76 +28,57 @@ func NewStore(pool *pgxpool.Pool) *Store {
 	return &Store{pool: pool}
 }
 
-// EnsureDevice creates a device record if it doesn't exist and updates last_seen.
-// brokerName attributes the device to the broker that reported it.
-func (s *Store) EnsureDevice(ctx context.Context, deviceID, brokerName string) error {
+// InsertMessage inserts a device, raw payload, and all readings inside a
+// single transaction. Returns the raw payload ID. readings' RawPayloadID
+// fields are stamped with the new ID before batch insert.
+func (s *Store) InsertMessage(ctx context.Context, deviceID, brokerName string, payload []byte, readings []ReadingRow) (int64, error) {
 	if brokerName == "" {
 		brokerName = "default"
 	}
-	_, err := s.pool.Exec(ctx, `
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck // no-op after Commit
+
+	if _, err := tx.Exec(ctx, `
 		INSERT INTO devices (id, broker_name, first_seen, last_seen)
 		VALUES ($1, $2, NOW(), NOW())
 		ON CONFLICT (id) DO UPDATE SET last_seen = NOW()
-	`, deviceID, brokerName)
-	return err
-}
+	`, deviceID, brokerName); err != nil {
+		return 0, fmt.Errorf("ensure device: %w", err)
+	}
 
-// InsertRawPayload stores the raw MQTT payload and returns its ID.
-func (s *Store) InsertRawPayload(ctx context.Context, deviceID string, payload []byte) (int64, error) {
-	var id int64
-	err := s.pool.QueryRow(ctx, `
+	var rawID int64
+	if err := tx.QueryRow(ctx, `
 		INSERT INTO raw_payloads (device_id, payload, received_at)
 		VALUES ($1, $2, NOW())
 		RETURNING id
-	`, deviceID, payload).Scan(&id)
-	return id, err
-}
-
-// InsertReadings batch-inserts readings using CopyFrom.
-func (s *Store) InsertReadings(ctx context.Context, readings []ReadingRow) error {
-	if len(readings) == 0 {
-		return nil
+	`, deviceID, payload).Scan(&rawID); err != nil {
+		return 0, fmt.Errorf("insert raw payload: %w", err)
 	}
 
-	_, err := s.pool.CopyFrom(ctx,
-		pgx.Identifier{"readings"},
-		[]string{"ts", "device_id", "field_name", "value", "raw_payload_id"},
-		pgx.CopyFromSlice(len(readings), func(i int) ([]any, error) {
-			r := readings[i]
-			return []any{r.Ts, r.DeviceID, r.FieldName, r.Value, r.RawPayloadID}, nil
-		}),
-	)
-	if err != nil {
-		return fmt.Errorf("copy readings: %w", err)
-	}
-
-	return nil
-}
-
-// GetDevices returns all known devices.
-func (s *Store) GetDevices(ctx context.Context) ([]DeviceRow, error) {
-	rows, err := s.pool.Query(ctx, `
-		SELECT d.id, d.name, d.device_type, d.broker_name, d.first_seen, d.last_seen,
-		       COUNT(DISTINCT r.field_name) as field_count
-		FROM devices d
-		LEFT JOIN readings r ON r.device_id = d.id
-		GROUP BY d.id, d.name, d.device_type, d.broker_name, d.first_seen, d.last_seen
-		ORDER BY d.last_seen DESC
-	`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var devices []DeviceRow
-	for rows.Next() {
-		var d DeviceRow
-		if err := rows.Scan(&d.ID, &d.Name, &d.DeviceType, &d.BrokerName, &d.FirstSeen, &d.LastSeen, &d.FieldCount); err != nil {
-			return nil, err
+	if len(readings) > 0 {
+		for i := range readings {
+			readings[i].RawPayloadID = rawID
 		}
-		devices = append(devices, d)
+		if _, err := tx.CopyFrom(ctx,
+			pgx.Identifier{"readings"},
+			[]string{"ts", "device_id", "field_name", "value", "raw_payload_id"},
+			pgx.CopyFromSlice(len(readings), func(i int) ([]any, error) {
+				r := readings[i]
+				return []any{r.Ts, r.DeviceID, r.FieldName, r.Value, r.RawPayloadID}, nil
+			}),
+		); err != nil {
+			return 0, fmt.Errorf("copy readings: %w", err)
+		}
 	}
-	return devices, rows.Err()
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("commit tx: %w", err)
+	}
+	return rawID, nil
 }
 
 // GetDeviceFields returns all distinct field names for a device.
@@ -152,17 +133,6 @@ func (s *Store) GetReadings(ctx context.Context, deviceID string, fields []strin
 	return results, rows.Err()
 }
 
-// DeviceRow represents a device with its field count.
-type DeviceRow struct {
-	ID         string    `json:"id"`
-	Name       string    `json:"name"`
-	DeviceType string    `json:"device_type"`
-	BrokerName string    `json:"broker_name"`
-	FirstSeen  time.Time `json:"first_seen"`
-	LastSeen   time.Time `json:"last_seen"`
-	FieldCount int       `json:"field_count"`
-}
-
 // ReadingResult represents a sensor reading with metadata.
 type ReadingResult struct {
 	Bucket      time.Time `json:"bucket"`
@@ -170,4 +140,6 @@ type ReadingResult struct {
 	DisplayName string    `json:"display_name"`
 	Unit        string    `json:"unit"`
 	Value       float64   `json:"value"`
+	MinValue    float64   `json:"min_value"`
+	MaxValue    float64   `json:"max_value"`
 }
